@@ -34,4 +34,3 @@ def test_settings_defaults() -> None:
     assert s.min_scenarios_overall == 50
     assert s.min_scenarios_per_category == 8
     assert s.default_runs_per_scenario == 3
-
