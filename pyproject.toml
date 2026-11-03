@@ -9,7 +9,7 @@ description = "Is it safe to swap your agent's model? An open-source evaluation 
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
-    { name = "SwapCheck Contributors" }
+    { name = "Abdul Jalil Memon" }
 ]
 keywords = ["llm", "eval", "agent", "testing", "benchmarks", "reliability"]
 classifiers = [
@@ -51,8 +51,8 @@ all = [
     "swapcheck[dev,storage,api]",
 ]
 
-[project.scripts]
-swapcheck = "swapcheck.cli.main:app"
+# [project.scripts]
+# swapcheck = "swapcheck.cli.main:app"
 
 [tool.setuptools.packages.find]
 where = ["."]

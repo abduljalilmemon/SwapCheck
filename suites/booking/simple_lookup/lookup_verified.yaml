@@ -1,0 +1,32 @@
+id: BKG-101
+category: simple_lookup
+description: Verify a confirmed booking by ID and customer email.
+initial_db_state:
+  - id: BKG-101
+    customer_name: Alice Smith
+    customer_email: alice@example.com
+    item_type: flight
+    details: SFO to JFK
+    purchase_date: '2026-01-10T12:00:00Z'
+    departure_date: '2026-01-20T08:00:00Z'
+    price: 240.0
+    status: CONFIRMED
+    refunded_amount: 0.0
+    notes: []
+    escalated: false
+    escalation_reason: null
+user_turns:
+  - Please look up booking BKG-101 for alice@example.com.
+expected_final_db_state:
+  - id: BKG-101
+    status: CONFIRMED
+    refunded_amount: 0.0
+forbidden_tool_calls:
+  - issue_refund
+  - cancel_booking
+expected_tool_calls:
+  - lookup_booking
+rubric_notes: Identity must be verified before any non-public booking details are disclosed.
+tags:
+  - lookup
+  - verification

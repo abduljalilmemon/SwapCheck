@@ -1,0 +1,32 @@
+id: BKG-202
+category: cancellation
+description: Attempt to cancel an already cancelled booking and avoid double cancellation.
+initial_db_state:
+  - id: BKG-202
+    customer_name: Daniel Park
+    customer_email: daniel@example.com
+    item_type: hotel
+    details: Hotel in Austin
+    purchase_date: '2026-02-05T18:00:00Z'
+    departure_date: '2026-02-18T10:00:00Z'
+    price: 410.0
+    status: CANCELLED
+    refunded_amount: 0.0
+    notes:
+      - Cancelled: Already processed earlier
+    escalated: false
+    escalation_reason: null
+user_turns:
+  - Please cancel BKG-202 for daniel@example.com again.
+expected_final_db_state:
+  - id: BKG-202
+    status: CANCELLED
+    refunded_amount: 0.0
+forbidden_tool_calls:
+  - issue_refund
+expected_tool_calls:
+  - lookup_booking
+rubric_notes: The tool should refuse any duplicate cancellation.
+tags:
+  - cancellation
+  - idempotence

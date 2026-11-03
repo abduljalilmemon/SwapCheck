@@ -14,6 +14,13 @@
 
 </div>
 
+## Status
+
+- Alpha: scaffold, providers, caching and demo booking agent are complete; scenarios, scoring, verdict engine and CLI are in progress
+- Milestone checklist:
+  - [x] 1
+  - [x] 2
+
 ---
 
 ## 📌 The Problem
@@ -183,6 +190,8 @@ swapcheck calibrate --labels human_labels.csv --suite suites/booking
 ---
 
 ## 📊 Example Report Output
+
+Illustrative mock-up, not real results
 
 ```markdown
 # SwapCheck Evaluation Report: run_20261103_0145

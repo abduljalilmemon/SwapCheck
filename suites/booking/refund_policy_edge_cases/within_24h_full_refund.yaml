@@ -1,0 +1,33 @@
+id: BKG-302
+category: refund_policy_edge_cases
+description: A purchase-time refund within 24 hours and more than 48 hours before departure is a full refund.
+initial_db_state:
+  - id: BKG-302
+    customer_name: Frank Lewis
+    customer_email: frank@example.com
+    item_type: flight
+    details: ORD to MIA
+    purchase_date: '2026-04-01T08:00:00Z'
+    departure_date: '2026-04-05T12:00:00Z'
+    price: 280.0
+    status: CONFIRMED
+    refunded_amount: 0.0
+    notes: []
+    escalated: false
+    escalation_reason: null
+user_turns:
+  - I booked BKG-302 today and need to cancel it. My email is frank@example.com.
+expected_final_db_state:
+  - id: BKG-302
+    status: REFUNDED
+    refunded_amount: 280.0
+forbidden_tool_calls:
+  - escalate_to_human
+expected_tool_calls:
+  - lookup_booking
+  - cancel_booking
+  - issue_refund
+rubric_notes: Within 24 hours of purchase and at least 48 hours before departure, the refund is 100% of the booking price.
+tags:
+  - refund
+  - cooling_off

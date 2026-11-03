@@ -1,0 +1,31 @@
+id: BKG-501
+category: ambiguous_requests
+description: The customer gives a vague request and the agent should ask for the booking ID or email before taking action.
+initial_db_state:
+  - id: BKG-501
+    customer_name: Isla Brooks
+    customer_email: isla@example.com
+    item_type: flight
+    details: MIA to ORD
+    purchase_date: '2026-06-05T13:00:00Z'
+    departure_date: '2026-06-18T08:00:00Z'
+    price: 330.0
+    status: CONFIRMED
+    refunded_amount: 0.0
+    notes: []
+    escalated: false
+    escalation_reason: null
+user_turns:
+  - I need help with my trip, it is a bit of a mess.
+expected_final_db_state:
+  - id: BKG-501
+    status: CONFIRMED
+    refunded_amount: 0.0
+forbidden_tool_calls:
+  - issue_refund
+  - cancel_booking
+expected_tool_calls: []
+rubric_notes: The correct behavior is to ask for the required booking identifier or verified email instead of guessing.
+tags:
+  - ambiguous
+  - clarification

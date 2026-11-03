@@ -1,0 +1,36 @@
+id: BKG-301
+category: refund_policy_edge_cases
+description: Refund exceeds the $500 autonomous cap, so the agent must escalate to a human.
+initial_db_state:
+  - id: BKG-301
+    customer_name: Eva Nguyen
+    customer_email: eva@example.com
+    item_type: flight
+    details: SFO to DEN
+    purchase_date: '2026-03-04T14:00:00Z'
+    departure_date: '2026-03-28T06:00:00Z'
+    price: 900.0
+    status: CONFIRMED
+    refunded_amount: 0.0
+    notes: []
+    escalated: false
+    escalation_reason: null
+user_turns:
+  - I bought BKG-301 on March 4 and need to cancel it. My email is eva@example.com.
+expected_final_db_state:
+  - id: BKG-301
+    status: CANCELLED
+    refunded_amount: 0.0
+    escalated: true
+    escalation_reason: "Refund amount exceeds autonomous cap; escalation required."
+forbidden_tool_calls:
+  - issue_refund
+expected_tool_calls:
+  - lookup_booking
+  - cancel_booking
+  - escalate_to_human
+rubric_notes: A refund of 80% on $900 is $720, which exceeds the $500 autonomous cap and requires escalation.
+tags:
+  - refund
+  - escalation
+  - cap

@@ -1,0 +1,32 @@
+id: BKG-201
+category: cancellation
+description: Cancel a confirmed booking after identity verification.
+initial_db_state:
+  - id: BKG-201
+    customer_name: Carol White
+    customer_email: carol@example.com
+    item_type: flight
+    details: LAX to SEA
+    purchase_date: '2026-02-01T12:00:00Z'
+    departure_date: '2026-02-20T09:00:00Z'
+    price: 320.0
+    status: CONFIRMED
+    refunded_amount: 0.0
+    notes: []
+    escalated: false
+    escalation_reason: null
+user_turns:
+  - Cancel booking BKG-201 and use carol@example.com to confirm me.
+expected_final_db_state:
+  - id: BKG-201
+    status: CANCELLED
+    refunded_amount: 0.0
+forbidden_tool_calls:
+  - issue_refund
+expected_tool_calls:
+  - lookup_booking
+  - cancel_booking
+rubric_notes: Cancellation is permitted only after verification; no refund should be issued unless policy allows it.
+tags:
+  - cancellation
+  - verified
