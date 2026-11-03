@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# SwapCheck local caches and databases
+.swapcheck_cache.db*
+*.db
+*.sqlite
