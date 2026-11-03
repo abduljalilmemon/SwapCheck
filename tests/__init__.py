@@ -1,1 +1,2 @@
 """SwapCheck test suite."""
+
