@@ -75,6 +75,10 @@ class VerdictEngine:
                     reasons=[
                         f"Category '{category_name}' has {count} scenarios, below the minimum of {self.min_scenarios_per_category}."
                     ],
+                    blockers=[],
+                    notes=[
+                        f"Category '{category_name}' has {count} scenarios, below the minimum of {self.min_scenarios_per_category}."
+                    ],
                 )
                 continue
 
@@ -97,6 +101,12 @@ class VerdictEngine:
                     f"Category '{category_name}' interval spans the category margin: [{lower:.3f}, {upper:.3f}]."
                 )
 
+            blockers = [
+                reason
+                for reason in category_reasons
+                if "degradation" in reason.lower() or "significant" in reason.lower()
+            ]
+            notes = [reason for reason in category_reasons if reason not in blockers]
             category_results[category_name] = CategoryResult(
                 category=category_name,
                 scenario_count=count,
@@ -105,6 +115,8 @@ class VerdictEngine:
                 powered=True,
                 status=status,
                 reasons=category_reasons,
+                blockers=blockers,
+                notes=notes,
             )
 
         if len(scenario_results) < self.min_scenarios:
@@ -201,6 +213,22 @@ class VerdictEngine:
             "candidate": self._token_totals(scenario_results, config="candidate"),
         }
 
+        blockers = [
+            reason
+            for reason in reasons
+            if any(
+                token in reason.lower()
+                for token in (
+                    "degradation",
+                    "worse",
+                    "critical policy",
+                    "below minimum",
+                    "significant",
+                )
+            )
+        ]
+        notes = [reason for reason in reasons if reason not in blockers]
+
         return VerdictResult(
             verdict=verdict,
             reasons=reasons,
@@ -220,6 +248,8 @@ class VerdictEngine:
                 "min_repetitions": self.min_repetitions,
                 "min_scenarios_per_category": self.min_scenarios_per_category,
             },
+            blockers=blockers,
+            notes=notes,
         )
 
     @staticmethod

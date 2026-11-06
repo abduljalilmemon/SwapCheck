@@ -24,6 +24,8 @@ def export_json_report(
         "overall_ci": list(verdict.overall_ci),
         "required_sample_size": verdict.required_sample_size,
         "reasons": verdict.reasons,
+        "blockers": verdict.blockers,
+        "notes": verdict.notes,
         "underpowered_categories": verdict.underpowered_categories,
         "category_results": {
             name: {
@@ -33,6 +35,8 @@ def export_json_report(
                 "powered": result.powered,
                 "status": result.status,
                 "reasons": result.reasons,
+                "blockers": result.blockers,
+                "notes": result.notes,
             }
             for name, result in sorted(verdict.category_results.items())
         },

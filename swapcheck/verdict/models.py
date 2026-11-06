@@ -63,6 +63,8 @@ class CategoryResult:
     powered: bool
     status: Literal["PASS", "FAIL", "INCONCLUSIVE", "UNDERPOWERED"]
     reasons: list[str] = field(default_factory=list)
+    blockers: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -81,3 +83,5 @@ class VerdictResult:
     token_totals: dict[str, dict[str, int]] = field(default_factory=dict)
     bootstrap_resamples: int = 2000
     metadata: dict[str, Any] = field(default_factory=dict)
+    blockers: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)

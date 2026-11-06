@@ -24,9 +24,14 @@ def render_markdown_report(
         "",
     ]
 
-    if verdict.reasons:
-        lines.append("### Reasons")
-        for reason in verdict.reasons:
+    if verdict.blockers:
+        lines.append("### Blockers")
+        for reason in verdict.blockers:
+            lines.append(f"- {reason}")
+        lines.append("")
+    if verdict.notes:
+        lines.append("### Notes")
+        for reason in verdict.notes:
             lines.append(f"- {reason}")
         lines.append("")
 
