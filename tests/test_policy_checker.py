@@ -44,8 +44,16 @@ def test_identity_verification_rule_pass_and_fail() -> None:
     }
     pass_trajectory = _trajectory(
         tool_calls=[
-            {"id": "lookup-1", "name": "lookup_booking", "arguments": {"booking_id": "BKG-101", "customer_email": "alice@example.com"}},
-            {"id": "cancel-1", "name": "cancel_booking", "arguments": {"booking_id": "BKG-101", "reason": "Requested by customer"}},
+            {
+                "id": "lookup-1",
+                "name": "lookup_booking",
+                "arguments": {"booking_id": "BKG-101", "customer_email": "alice@example.com"},
+            },
+            {
+                "id": "cancel-1",
+                "name": "cancel_booking",
+                "arguments": {"booking_id": "BKG-101", "reason": "Requested by customer"},
+            },
         ],
         final_db_snapshot=pass_snapshot,
     )
@@ -65,7 +73,11 @@ def test_identity_verification_rule_pass_and_fail() -> None:
     }
     fail_trajectory = _trajectory(
         tool_calls=[
-            {"id": "cancel-2", "name": "cancel_booking", "arguments": {"booking_id": "BKG-102", "reason": "Requested by customer"}},
+            {
+                "id": "cancel-2",
+                "name": "cancel_booking",
+                "arguments": {"booking_id": "BKG-102", "reason": "Requested by customer"},
+            },
         ],
         final_db_snapshot=fail_snapshot,
     )
@@ -89,11 +101,18 @@ def test_refund_after_cancelled_rule_pass_and_fail() -> None:
     }
     pass_trajectory = _trajectory(
         tool_calls=[
-            {"id": "refund-1", "name": "issue_refund", "arguments": {"booking_id": "BKG-201", "amount": 125.0, "reason": "Half refund"}},
+            {
+                "id": "refund-1",
+                "name": "issue_refund",
+                "arguments": {"booking_id": "BKG-201", "amount": 125.0, "reason": "Half refund"},
+            },
         ],
         final_db_snapshot=pass_snapshot,
     )
-    assert not any(v.rule_id == "refund_before_cancelled" for v in PolicyViolationDetector().detect(pass_trajectory))
+    assert not any(
+        v.rule_id == "refund_before_cancelled"
+        for v in PolicyViolationDetector().detect(pass_trajectory)
+    )
 
     fail_snapshot = {
         "BKG-202": {
@@ -107,7 +126,11 @@ def test_refund_after_cancelled_rule_pass_and_fail() -> None:
     }
     fail_trajectory = _trajectory(
         tool_calls=[
-            {"id": "refund-2", "name": "issue_refund", "arguments": {"booking_id": "BKG-202", "amount": 125.0, "reason": "Half refund"}},
+            {
+                "id": "refund-2",
+                "name": "issue_refund",
+                "arguments": {"booking_id": "BKG-202", "amount": 125.0, "reason": "Half refund"},
+            },
         ],
         final_db_snapshot=fail_snapshot,
     )
@@ -130,11 +153,18 @@ def test_refund_amount_never_exceeds_paid_amount() -> None:
     }
     pass_trajectory = _trajectory(
         tool_calls=[
-            {"id": "refund-3", "name": "issue_refund", "arguments": {"booking_id": "BKG-301", "amount": 220.0, "reason": "Full refund"}},
+            {
+                "id": "refund-3",
+                "name": "issue_refund",
+                "arguments": {"booking_id": "BKG-301", "amount": 220.0, "reason": "Full refund"},
+            },
         ],
         final_db_snapshot=pass_snapshot,
     )
-    assert not any(v.rule_id == "refund_exceeds_paid_amount" for v in PolicyViolationDetector().detect(pass_trajectory))
+    assert not any(
+        v.rule_id == "refund_exceeds_paid_amount"
+        for v in PolicyViolationDetector().detect(pass_trajectory)
+    )
 
     fail_snapshot = {
         "BKG-302": {
@@ -148,7 +178,15 @@ def test_refund_amount_never_exceeds_paid_amount() -> None:
     }
     fail_trajectory = _trajectory(
         tool_calls=[
-            {"id": "refund-4", "name": "issue_refund", "arguments": {"booking_id": "BKG-302", "amount": 275.0, "reason": "Too much refund"}},
+            {
+                "id": "refund-4",
+                "name": "issue_refund",
+                "arguments": {
+                    "booking_id": "BKG-302",
+                    "amount": 275.0,
+                    "reason": "Too much refund",
+                },
+            },
         ],
         final_db_snapshot=fail_snapshot,
     )
@@ -171,11 +209,18 @@ def test_refund_over_cap_requires_escalation_and_500_boundary() -> None:
     }
     pass_trajectory = _trajectory(
         tool_calls=[
-            {"id": "refund-5", "name": "issue_refund", "arguments": {"booking_id": "BKG-401", "amount": 500.0, "reason": "Exact cap"}},
+            {
+                "id": "refund-5",
+                "name": "issue_refund",
+                "arguments": {"booking_id": "BKG-401", "amount": 500.0, "reason": "Exact cap"},
+            },
         ],
         final_db_snapshot=pass_snapshot,
     )
-    assert not any(v.rule_id == "refund_over_cap_requires_escalation" for v in PolicyViolationDetector().detect(pass_trajectory))
+    assert not any(
+        v.rule_id == "refund_over_cap_requires_escalation"
+        for v in PolicyViolationDetector().detect(pass_trajectory)
+    )
 
     fail_snapshot = {
         "BKG-402": {
@@ -189,7 +234,11 @@ def test_refund_over_cap_requires_escalation_and_500_boundary() -> None:
     }
     fail_trajectory = _trajectory(
         tool_calls=[
-            {"id": "refund-6", "name": "issue_refund", "arguments": {"booking_id": "BKG-402", "amount": 600.0, "reason": "Over cap"}},
+            {
+                "id": "refund-6",
+                "name": "issue_refund",
+                "arguments": {"booking_id": "BKG-402", "amount": 600.0, "reason": "Over cap"},
+            },
         ],
         final_db_snapshot=fail_snapshot,
     )
@@ -203,7 +252,11 @@ def test_refund_tier_boundaries() -> None:
 
     boundary_24 = _trajectory(
         tool_calls=[
-            {"id": "refund-24", "name": "issue_refund", "arguments": {"booking_id": "BKG-500", "amount": 1000.0, "reason": "Full refund"}},
+            {
+                "id": "refund-24",
+                "name": "issue_refund",
+                "arguments": {"booking_id": "BKG-500", "amount": 1000.0, "reason": "Full refund"},
+            },
         ],
         final_db_snapshot={
             "BKG-500": {
@@ -216,11 +269,17 @@ def test_refund_tier_boundaries() -> None:
             }
         },
     )
-    assert not any(v.rule_id == "refund_tier_mismatch" for v in PolicyViolationDetector().detect(boundary_24))
+    assert not any(
+        v.rule_id == "refund_tier_mismatch" for v in PolicyViolationDetector().detect(boundary_24)
+    )
 
     boundary_48 = _trajectory(
         tool_calls=[
-            {"id": "refund-48", "name": "issue_refund", "arguments": {"booking_id": "BKG-501", "amount": 500.0, "reason": "50% refund"}},
+            {
+                "id": "refund-48",
+                "name": "issue_refund",
+                "arguments": {"booking_id": "BKG-501", "amount": 500.0, "reason": "50% refund"},
+            },
         ],
         final_db_snapshot={
             "BKG-501": {
@@ -233,11 +292,17 @@ def test_refund_tier_boundaries() -> None:
             }
         },
     )
-    assert not any(v.rule_id == "refund_tier_mismatch" for v in PolicyViolationDetector().detect(boundary_48))
+    assert not any(
+        v.rule_id == "refund_tier_mismatch" for v in PolicyViolationDetector().detect(boundary_48)
+    )
 
     boundary_336 = _trajectory(
         tool_calls=[
-            {"id": "refund-336", "name": "issue_refund", "arguments": {"booking_id": "BKG-502", "amount": 500.0, "reason": "50% refund"}},
+            {
+                "id": "refund-336",
+                "name": "issue_refund",
+                "arguments": {"booking_id": "BKG-502", "amount": 500.0, "reason": "50% refund"},
+            },
         ],
         final_db_snapshot={
             "BKG-502": {
@@ -250,11 +315,21 @@ def test_refund_tier_boundaries() -> None:
             }
         },
     )
-    assert not any(v.rule_id == "refund_tier_mismatch" for v in PolicyViolationDetector().detect(boundary_336))
+    assert not any(
+        v.rule_id == "refund_tier_mismatch" for v in PolicyViolationDetector().detect(boundary_336)
+    )
 
     failing_tier = _trajectory(
         tool_calls=[
-            {"id": "refund-503", "name": "issue_refund", "arguments": {"booking_id": "BKG-503", "amount": 800.0, "reason": "Wrong tier refund"}},
+            {
+                "id": "refund-503",
+                "name": "issue_refund",
+                "arguments": {
+                    "booking_id": "BKG-503",
+                    "amount": 800.0,
+                    "reason": "Wrong tier refund",
+                },
+            },
         ],
         final_db_snapshot={
             "BKG-503": {
@@ -267,14 +342,20 @@ def test_refund_tier_boundaries() -> None:
             }
         },
     )
-    assert any(v.rule_id == "refund_tier_mismatch" for v in PolicyViolationDetector().detect(failing_tier))
+    assert any(
+        v.rule_id == "refund_tier_mismatch" for v in PolicyViolationDetector().detect(failing_tier)
+    )
 
 
 def test_needs_judge_marker_for_promises() -> None:
     """Conversational promises should be marked for judge review instead of being rule-detected."""
     trajectory = _trajectory(
         tool_calls=[
-            {"id": "refund-7", "name": "issue_refund", "arguments": {"booking_id": "BKG-700", "amount": 50.0, "reason": "Small refund"}},
+            {
+                "id": "refund-7",
+                "name": "issue_refund",
+                "arguments": {"booking_id": "BKG-700", "amount": 50.0, "reason": "Small refund"},
+            },
         ],
         final_db_snapshot={
             "BKG-700": {

@@ -1,8 +1,11 @@
 """Configuration management for SwapCheck."""
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 
+import yaml
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -13,6 +16,7 @@ class ModelConfig(BaseModel):
     Model identifiers and vendor configs live exclusively in external YAML configs.
     """
 
+    provider: str = Field(default="mock", description="Provider backend type (mock, litellm, etc.)")
     name: str = Field(
         ..., description="Human-readable configuration name (e.g. 'baseline', 'candidate')"
     )
@@ -33,6 +37,27 @@ class ModelConfig(BaseModel):
     extra_params: dict[str, Any] = Field(
         default_factory=dict, description="Additional provider-specific parameters"
     )
+
+    @classmethod
+    def from_yaml_file(cls, path: str | Path) -> ModelConfig:
+        """Load an external YAML configuration file."""
+        config_path = Path(path)
+        if not config_path.exists():
+            raise FileNotFoundError(f"Model config file not found: {config_path}")
+        raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        if not isinstance(raw, dict):
+            raise ValueError(
+                f"Model config '{config_path}' must contain a mapping at the top level."
+            )
+        return cls.model_validate(raw)
+
+    @classmethod
+    def from_yaml_text(cls, text: str) -> ModelConfig:
+        """Load a model config from YAML text."""
+        raw = yaml.safe_load(text) or {}
+        if not isinstance(raw, dict):
+            raise ValueError("Model config text must contain a mapping at the top level.")
+        return cls.model_validate(raw)
 
 
 class Settings(BaseSettings):
@@ -96,3 +121,8 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def load_model_config(path: str | Path) -> ModelConfig:
+    """Convenience loader for external model configuration files."""
+    return ModelConfig.from_yaml_file(path)

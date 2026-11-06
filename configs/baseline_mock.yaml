@@ -1,0 +1,8 @@
+provider: mock
+name: baseline
+model: baseline-mock
+temperature: 0.0
+max_tokens: 512
+cost_per_input_token: 0.000001
+cost_per_output_token: 0.000002
+extra_params: {}

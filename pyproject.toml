@@ -51,8 +51,8 @@ all = [
     "swapcheck[dev,storage,api]",
 ]
 
-# [project.scripts]
-# swapcheck = "swapcheck.cli.main:app"
+[project.scripts]
+swapcheck = "swapcheck.cli.main:app"
 
 [tool.setuptools.packages.find]
 where = ["."]

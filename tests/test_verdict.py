@@ -86,8 +86,8 @@ def test_hold_when_new_critical_policy_violation_is_detected() -> None:
 
 def test_underpowered_category_is_flagged_without_forcing_hold() -> None:
     rows = [
-        * _scenario_rows(baseline=0.90, candidate=0.92, category="booking", count=60),
-        * _scenario_rows(baseline=0.72, candidate=0.74, category="refunds", count=3),
+        *_scenario_rows(baseline=0.90, candidate=0.92, category="booking", count=60),
+        *_scenario_rows(baseline=0.72, candidate=0.74, category="refunds", count=3),
     ]
 
     result = VerdictEngine(min_scenarios=50, min_scenarios_per_category=8).evaluate(rows)

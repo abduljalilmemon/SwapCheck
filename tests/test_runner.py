@@ -35,9 +35,7 @@ async def test_runner_repeats_scenarios_and_caches_calls() -> None:
             }
         ],
         user_turns=["Please look up BKG-1001 with alice@example.com."],
-        expected_final_db_state=[
-            {"id": "BKG-1001", "status": "CONFIRMED", "refunded_amount": 0.0}
-        ],
+        expected_final_db_state=[{"id": "BKG-1001", "status": "CONFIRMED", "refunded_amount": 0.0}],
         forbidden_tool_calls=["issue_refund"],
         expected_tool_calls=["lookup_booking"],
         tags=["lookup"],

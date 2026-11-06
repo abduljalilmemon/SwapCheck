@@ -7,7 +7,9 @@ from swapcheck.scenarios.trajectory import Trajectory, TurnRecord
 from swapcheck.scoring.deterministic import DeterministicScorer
 
 
-def _trajectory(*, tool_calls: list[dict[str, object]], final_snapshot: dict[str, dict[str, object]]) -> Trajectory:
+def _trajectory(
+    *, tool_calls: list[dict[str, object]], final_snapshot: dict[str, dict[str, object]]
+) -> Trajectory:
     return Trajectory(
         scenario_id="scenario-1",
         category="simple_lookup",
@@ -22,7 +24,14 @@ def test_deterministic_scorer_accepts_valid_run() -> None:
         id="scenario-valid",
         category="simple_lookup",
         description="Valid run.",
-        initial_db_state=[{"id": "BKG-1", "customer_email": "alice@example.com", "status": "CONFIRMED", "price": 300.0}],
+        initial_db_state=[
+            {
+                "id": "BKG-1",
+                "customer_email": "alice@example.com",
+                "status": "CONFIRMED",
+                "price": 300.0,
+            }
+        ],
         user_turns=["Please cancel BKG-1."],
         expected_final_db_state=[{"id": "BKG-1", "status": "CANCELLED"}],
         forbidden_tool_calls=["issue_refund"],
@@ -66,7 +75,14 @@ def test_deterministic_scorer_flags_invalid_args_and_forbidden_tools() -> None:
         id="scenario-invalid",
         category="refund_policy_edge_cases",
         description="Invalid run.",
-        initial_db_state=[{"id": "BKG-2", "customer_email": "bob@example.com", "status": "CANCELLED", "price": 1000.0}],
+        initial_db_state=[
+            {
+                "id": "BKG-2",
+                "customer_email": "bob@example.com",
+                "status": "CANCELLED",
+                "price": 1000.0,
+            }
+        ],
         user_turns=["Please refund BKG-2."],
         expected_final_db_state=[{"id": "BKG-2", "status": "CANCELLED"}],
         forbidden_tool_calls=["issue_refund"],
@@ -105,7 +121,14 @@ def test_deterministic_scorer_reports_db_state_diff() -> None:
         id="scenario-db-mismatch",
         category="simple_lookup",
         description="Database expectation mismatch.",
-        initial_db_state=[{"id": "BKG-3", "customer_email": "carol@example.com", "status": "CONFIRMED", "price": 50.0}],
+        initial_db_state=[
+            {
+                "id": "BKG-3",
+                "customer_email": "carol@example.com",
+                "status": "CONFIRMED",
+                "price": 50.0,
+            }
+        ],
         user_turns=["Check BKG-3."],
         expected_final_db_state=[{"id": "BKG-3", "status": "CANCELLED"}],
         forbidden_tool_calls=[],

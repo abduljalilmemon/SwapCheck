@@ -1,0 +1,8 @@
+provider: mock
+name: candidate
+model: candidate-mock
+temperature: 0.1
+max_tokens: 512
+cost_per_input_token: 0.0000008
+cost_per_output_token: 0.0000015
+extra_params: {}

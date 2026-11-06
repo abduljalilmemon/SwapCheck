@@ -142,9 +142,7 @@ class DeterministicScorer:
         observed = [call["name"] for call in self._iter_tool_calls(trajectory)]
         violations = sorted({name for name in forbidden if name in observed})
         if violations:
-            breakdown.add_failure(
-                f"Forbidden tool call(s) used: {', '.join(violations)}."
-            )
+            breakdown.add_failure(f"Forbidden tool call(s) used: {', '.join(violations)}.")
         return violations
 
     @staticmethod

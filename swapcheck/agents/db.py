@@ -23,7 +23,10 @@ class Booking(BaseModel):
         default="CONFIRMED", description="Current lifecycle status"
     )
     refunded_amount: float = Field(default=0.0, ge=0.0, description="Total refunded amount in USD")
-    notes: list[str] = Field(default_factory=list, description="Audit log of actions on booking")
+    notes: list[str | dict[str, Any]] = Field(
+        default_factory=list,
+        description="Audit log of actions on booking; may include structured status entries.",
+    )
     escalated: bool = Field(default=False, description="Whether booking was escalated to human")
     escalation_reason: str | None = Field(default=None, description="Reason for human escalation")
 

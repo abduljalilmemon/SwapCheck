@@ -78,7 +78,9 @@ def paired_scenario_bootstrap(
         if isinstance(row, (float, int)):
             raise TypeError("Scenario rows must be mapping-like or ScenarioResult objects.")
         baseline, candidate = _scenario_to_rates(row)
-        category = row.get("category", "uncategorized") if isinstance(row, Mapping) else row.category
+        category = (
+            row.get("category", "uncategorized") if isinstance(row, Mapping) else row.category
+        )
         categories[str(category)].append((baseline, candidate))
 
     category_summary: dict[str, BootstrapResult] = {}
@@ -110,7 +112,9 @@ def paired_bootstrap_by_category(
     rows_by_category: dict[str, list[tuple[float, float]]] = defaultdict(list)
     for row in scenario_rows:
         baseline, candidate = _scenario_to_rates(row)
-        category = row.get("category", "uncategorized") if isinstance(row, Mapping) else row.category
+        category = (
+            row.get("category", "uncategorized") if isinstance(row, Mapping) else row.category
+        )
         rows_by_category[str(category)].append((baseline, candidate))
 
     summary: dict[str, BootstrapResult] = {}

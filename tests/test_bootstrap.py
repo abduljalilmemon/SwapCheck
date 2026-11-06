@@ -23,10 +23,30 @@ def test_bootstrap_reproduces_known_difference_in_most_datasets() -> None:
 
 def test_bootstrap_by_category_returns_category_interval() -> None:
     scenarios = [
-        {"scenario_id": "s1", "category": "refunds", "baseline_pass_rate": 0.7, "candidate_pass_rate": 0.8},
-        {"scenario_id": "s2", "category": "refunds", "baseline_pass_rate": 0.6, "candidate_pass_rate": 0.9},
-        {"scenario_id": "s3", "category": "policy", "baseline_pass_rate": 0.5, "candidate_pass_rate": 0.55},
-        {"scenario_id": "s4", "category": "policy", "baseline_pass_rate": 0.4, "candidate_pass_rate": 0.5},
+        {
+            "scenario_id": "s1",
+            "category": "refunds",
+            "baseline_pass_rate": 0.7,
+            "candidate_pass_rate": 0.8,
+        },
+        {
+            "scenario_id": "s2",
+            "category": "refunds",
+            "baseline_pass_rate": 0.6,
+            "candidate_pass_rate": 0.9,
+        },
+        {
+            "scenario_id": "s3",
+            "category": "policy",
+            "baseline_pass_rate": 0.5,
+            "candidate_pass_rate": 0.55,
+        },
+        {
+            "scenario_id": "s4",
+            "category": "policy",
+            "baseline_pass_rate": 0.4,
+            "candidate_pass_rate": 0.5,
+        },
     ]
 
     result = paired_scenario_bootstrap(scenarios, resamples=1000, seed=4)

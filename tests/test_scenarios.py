@@ -62,29 +62,35 @@ def test_load_scenarios_rejects_duplicate_ids(tmp_path: Path) -> None:
     first = tmp_path / "s1.yaml"
     second = tmp_path / "s2.yaml"
     first.write_text(
-        yaml.safe_dump({
-            "id": "dup-1",
-            "category": "simple_lookup",
-            "description": "First scenario",
-            "initial_db_state": [],
-            "user_turns": ["Hi"],
-            "expected_final_db_state": [],
-            "forbidden_tool_calls": [],
-            "tags": ["t"],
-        }, sort_keys=False),
+        yaml.safe_dump(
+            {
+                "id": "dup-1",
+                "category": "simple_lookup",
+                "description": "First scenario",
+                "initial_db_state": [],
+                "user_turns": ["Hi"],
+                "expected_final_db_state": [],
+                "forbidden_tool_calls": [],
+                "tags": ["t"],
+            },
+            sort_keys=False,
+        ),
         encoding="utf-8",
     )
     second.write_text(
-        yaml.safe_dump({
-            "id": "dup-1",
-            "category": "cancelled",
-            "description": "Second scenario",
-            "initial_db_state": [],
-            "user_turns": ["Hi"],
-            "expected_final_db_state": [],
-            "forbidden_tool_calls": [],
-            "tags": ["t"],
-        }, sort_keys=False),
+        yaml.safe_dump(
+            {
+                "id": "dup-1",
+                "category": "cancelled",
+                "description": "Second scenario",
+                "initial_db_state": [],
+                "user_turns": ["Hi"],
+                "expected_final_db_state": [],
+                "forbidden_tool_calls": [],
+                "tags": ["t"],
+            },
+            sort_keys=False,
+        ),
         encoding="utf-8",
     )
 

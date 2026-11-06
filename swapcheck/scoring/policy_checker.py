@@ -46,11 +46,17 @@ class PolicyViolationDetector:
                 booking = snapshot.get(booking_id)
                 if isinstance(booking, dict):
                     stored_email = str(booking.get("customer_email") or "")
-                    if isinstance(email_value, str) and email_value.strip().lower() == stored_email.strip().lower():
+                    if (
+                        isinstance(email_value, str)
+                        and email_value.strip().lower() == stored_email.strip().lower()
+                    ):
                         verified_booking_ids.add(booking_id)
                 continue
 
-            if name in {"cancel_booking", "issue_refund"} and booking_id not in verified_booking_ids:
+            if (
+                name in {"cancel_booking", "issue_refund"}
+                and booking_id not in verified_booking_ids
+            ):
                 violations.append(
                     PolicyViolation(
                         rule_id="identity_verification_missing",
@@ -163,7 +169,10 @@ class PolicyViolationDetector:
             return float(booking_price)
         if hours_until_departure > 336.0 + epsilon_seconds / 3600.0:
             return round(float(booking_price) * 0.8, 2)
-        if hours_until_departure >= 48.0 - epsilon_seconds / 3600.0 and hours_until_departure <= 336.0 + epsilon_seconds / 3600.0:
+        if (
+            hours_until_departure >= 48.0 - epsilon_seconds / 3600.0
+            and hours_until_departure <= 336.0 + epsilon_seconds / 3600.0
+        ):
             return round(float(booking_price) * 0.5, 2)
         return 0.0
 

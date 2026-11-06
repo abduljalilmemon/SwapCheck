@@ -23,7 +23,9 @@ class ScoreBreakdown(BaseModel):
     passed: bool = Field(default=False, description="Whether the trajectory passes all checks.")
     tool_selection_ok: bool = Field(default=True, description="Expected tool calls were observed.")
     args_valid: bool = Field(default=True, description="Tool arguments match the supported schema.")
-    db_state_matches: bool = Field(default=True, description="Final DB state matches the scenario expectation.")
+    db_state_matches: bool = Field(
+        default=True, description="Final DB state matches the scenario expectation."
+    )
     forbidden_action_violations: list[str] = Field(
         default_factory=list,
         description="Forbidden tool names that were invoked.",

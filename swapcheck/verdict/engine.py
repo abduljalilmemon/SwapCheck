@@ -60,7 +60,9 @@ class VerdictEngine:
         for category_name in sorted(categories):
             rows = categories[category_name]
             count = len(rows)
-            category_delta = float(np.mean([row.candidate_pass_rate - row.baseline_pass_rate for row in rows]))
+            category_delta = float(
+                np.mean([row.candidate_pass_rate - row.baseline_pass_rate for row in rows])
+            )
             if count < self.min_scenarios_per_category:
                 underpowered_categories.append(category_name)
                 category_results[category_name] = CategoryResult(
@@ -111,7 +113,8 @@ class VerdictEngine:
             )
 
         if any(
-            row.baseline_repetitions < self.min_repetitions or row.candidate_repetitions < self.min_repetitions
+            row.baseline_repetitions < self.min_repetitions
+            or row.candidate_repetitions < self.min_repetitions
             for row in scenario_results
         ):
             reasons.append(
@@ -122,11 +125,11 @@ class VerdictEngine:
             [float(row.candidate_pass_rate - row.baseline_pass_rate) for row in scenario_results],
             dtype=float,
         )
-        total_new_violations = sum(int(row.new_critical_policy_violations) for row in scenario_results)
+        total_new_violations = sum(
+            int(row.new_critical_policy_violations) for row in scenario_results
+        )
         if total_new_violations > 0:
-            reasons.append(
-                f"New critical policy violations detected: {total_new_violations}."
-            )
+            reasons.append(f"New critical policy violations detected: {total_new_violations}.")
 
         if overall.upper < -self.epsilon_overall:
             reasons.append(
@@ -145,10 +148,16 @@ class VerdictEngine:
             )
 
         if any(result.status == "FAIL" for result in category_results.values()):
-            reasons.append("At least one powered category has a statistically significant degradation.")
+            reasons.append(
+                "At least one powered category has a statistically significant degradation."
+            )
 
         verdict: Literal["SHIP", "HOLD", "INCONCLUSIVE"] = "SHIP"
-        powered_failures = [result for result in category_results.values() if result.powered and result.status == "FAIL"]
+        powered_failures = [
+            result
+            for result in category_results.values()
+            if result.powered and result.status == "FAIL"
+        ]
         if overall.upper < -self.epsilon_overall or total_new_violations > 0 or powered_failures:
             verdict = "HOLD"
         elif len(scenario_results) < self.min_scenarios or (
@@ -175,7 +184,7 @@ class VerdictEngine:
             variance = float(np.var(delta_values, ddof=1)) if len(delta_values) > 1 else 0.0
             numerator = 2.0 * (1.96 + 0.84) ** 2 * variance
             if self.epsilon_overall > 0.0:
-                required_sample_size = max(1, int(ceil(numerator / (self.epsilon_overall ** 2))))
+                required_sample_size = max(1, int(ceil(numerator / (self.epsilon_overall**2))))
             else:
                 required_sample_size = 1
 
@@ -214,7 +223,9 @@ class VerdictEngine:
         )
 
     @staticmethod
-    def _cost_summary(scenario_results: Sequence[ScenarioResult], *, config: str) -> dict[str, float | int]:
+    def _cost_summary(
+        scenario_results: Sequence[ScenarioResult], *, config: str
+    ) -> dict[str, float | int]:
         total_cost = sum(float(getattr(row, f"{config}_cost")) for row in scenario_results)
         successes = sum(int(getattr(row, f"{config}_successes")) for row in scenario_results)
         cost_per_success = total_cost / max(successes, 1)
@@ -225,7 +236,9 @@ class VerdictEngine:
         }
 
     @staticmethod
-    def _latency_summary(scenario_results: Sequence[ScenarioResult], *, config: str) -> dict[str, float]:
+    def _latency_summary(
+        scenario_results: Sequence[ScenarioResult], *, config: str
+    ) -> dict[str, float]:
         latencies: list[float] = []
         for row in scenario_results:
             latencies.extend(float(value) for value in getattr(row, f"{config}_latency_ms"))
@@ -241,7 +254,9 @@ class VerdictEngine:
     @staticmethod
     def _token_totals(scenario_results: Sequence[ScenarioResult], *, config: str) -> dict[str, int]:
         prompt = sum(int(getattr(row, f"{config}_prompt_tokens")) for row in scenario_results)
-        completion = sum(int(getattr(row, f"{config}_completion_tokens")) for row in scenario_results)
+        completion = sum(
+            int(getattr(row, f"{config}_completion_tokens")) for row in scenario_results
+        )
         return {
             "prompt_tokens": int(prompt),
             "completion_tokens": int(completion),
