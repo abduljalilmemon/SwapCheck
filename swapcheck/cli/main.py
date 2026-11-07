@@ -20,6 +20,7 @@ from swapcheck.scenarios.loader import load_scenarios
 from swapcheck.scenarios.models import Scenario
 from swapcheck.scenarios.runner import ScenarioRunner
 from swapcheck.scenarios.trajectory import Trajectory
+from swapcheck.scoring.calibration import summarize_calibration, write_label_template
 from swapcheck.scoring.deterministic import DeterministicScorer
 from swapcheck.verdict.engine import VerdictEngine
 from swapcheck.verdict.models import ScenarioResult
@@ -300,15 +301,10 @@ def label(
     run_id: Annotated[str, typer.Option("--run")],
     output: Annotated[Path, typer.Option("--output")],
 ) -> None:
-    """Label recorded trajectories from a run. Placeholder for the future human-label flow."""
+    """Create a human-label CSV template for a recorded run."""
     output_path = _resolve_path(output)
-    output_path.write_text(
-        "trajectory_id,scenario_id,helpfulness,groundedness,tone,off_policy_promises,passed,notes\n",
-        encoding="utf-8",
-    )
-    console.print(
-        f"[yellow]Created empty label template for run {run_id} at {output_path}[/yellow]"
-    )
+    output_path = write_label_template(output_path)
+    console.print(f"[green]Created label template for run {run_id} at {output_path}[/green]")
 
 
 @app.command()
@@ -316,9 +312,16 @@ def calibrate(
     labels: Annotated[Path, typer.Option("--labels")],
     suite: Annotated[Path, typer.Option("--suite")],
 ) -> None:
-    """Calculate label agreement metrics. Placeholder for the future calibration module."""
+    """Calculate agreement metrics from human-labeled trajectories."""
+    labels_path = _resolve_path(labels)
+    suite_path = _resolve_path(suite)
+    summary = summarize_calibration(labels_path)
+    console.print(f"[green]Calibration summary for {labels_path} over {suite_path}[/green]")
+    console.print(f"Samples: {summary['n_samples']}")
+    console.print(f"Cohen's kappa: {summary['kappa']:.3f}")
+    console.print(f"95% CI: [{summary['ci_95'][0]:.3f}, {summary['ci_95'][1]:.3f}]")
     console.print(
-        f"[yellow]Calibration is not yet implemented for {labels} with suite {suite}; the label template was prepared.[/yellow]"
+        f"Bootstrap 95% CI: [{summary['bootstrap_ci_95'][0]:.3f}, {summary['bootstrap_ci_95'][1]:.3f}]"
     )
 
 
