@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -15,26 +14,41 @@ from swapcheck.scenarios.trajectory import Trajectory
 from swapcheck.scoring.judge_prompt import build_judge_prompt, prompt_hash
 
 
+class JudgePayload(BaseModel):
+    """Structured payload expected from LLM judge."""
+
+    helpfulness: int = Field(..., ge=1, le=5)
+    groundedness: int = Field(..., ge=1, le=5)
+    tone: int = Field(..., ge=1, le=5)
+    off_policy_promises: bool = Field(...)
+    passed: bool = Field(...)
+    explanation: str = Field(default="")
+
+
 class JudgeScore(BaseModel):
     """Structured score returned by the LLM-as-a-judge."""
 
-    helpfulness: int = Field(default=3, ge=1, le=5)
-    groundedness: int = Field(default=3, ge=1, le=5)
-    tone: int = Field(default=3, ge=1, le=5)
+    helpfulness: int = Field(default=1, ge=1, le=5)
+    groundedness: int = Field(default=1, ge=1, le=5)
+    tone: int = Field(default=1, ge=1, le=5)
     off_policy_promises: bool = Field(default=False)
-    passed: bool = Field(default=True)
+    passed: bool = Field(default=False)
     explanation: str = Field(default="")
     model: str = Field(default="")
     temperature: float = Field(default=0.0)
     prompt_hash_value: str = Field(default="")
+    judge_error: str | None = Field(default=None)
+    cost: float = Field(default=0.0, ge=0.0)
+    latency_ms: float = Field(default=0.0, ge=0.0)
 
     @property
     def acceptable(self) -> bool:
         """Whether the judge verdict regards the trajectory as acceptable."""
         return bool(
             self.passed
+            and self.judge_error is None
             and self.helpfulness >= 3
-            and self.groundedness >= 3
+            and self.groundedness >= 4
             and self.tone >= 3
             and not self.off_policy_promises
         )
@@ -48,7 +62,18 @@ class JudgeScorer:
         provider: BaseProvider | None = None,
         *,
         judge_config: ModelConfig | None = None,
+        min_helpfulness: int = 3,
+        min_groundedness: int = 4,
+        min_tone: int = 3,
+        allow_off_policy: bool = False,
+        max_retries: int = 2,
     ) -> None:
+        self.min_helpfulness = min_helpfulness
+        self.min_groundedness = min_groundedness
+        self.min_tone = min_tone
+        self.allow_off_policy = allow_off_policy
+        self.max_retries = max_retries
+
         if provider is not None:
             self.provider = provider
         elif judge_config is not None:
@@ -60,25 +85,80 @@ class JudgeScorer:
 
     async def score(self, trajectory: Trajectory, *, scenario_id: str | None = None) -> JudgeScore:
         """Ask the judge to assess a trajectory and return a structured verdict."""
-        prompt = build_judge_prompt(trajectory, scenario_id=scenario_id)
+        prompt = build_judge_prompt(trajectory, scenario_id=scenario_id or trajectory.scenario_id)
         prompt_key = prompt_hash(prompt)
-        response = await self.provider.complete([ChatMessage(role="user", content=prompt)])
-        payload = self._parse_response(response)
+        messages: list[ChatMessage] = [ChatMessage(role="user", content=prompt)]
 
-        score = JudgeScore(
-            helpfulness=int(payload.get("helpfulness", 3)),
-            groundedness=int(payload.get("groundedness", 3)),
-            tone=int(payload.get("tone", 3)),
-            off_policy_promises=bool(payload.get("off_policy_promises", False)),
-            passed=bool(payload.get("passed", True)),
-            explanation=str(payload.get("explanation", "No explanation provided.")),
-            model=response.model or self.provider.model_name,
+        total_cost = 0.0
+        total_latency = 0.0
+        model_name = getattr(self.provider, "model_name", "")
+        last_error: str | None = None
+
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = await self.provider.complete(messages)
+                total_cost += float(response.cost)
+                total_latency += float(response.latency_ms)
+                if response.model:
+                    model_name = response.model
+
+                payload = self._parse_and_validate(response)
+
+                is_passed = bool(
+                    payload.passed
+                    and payload.helpfulness >= self.min_helpfulness
+                    and payload.groundedness >= self.min_groundedness
+                    and payload.tone >= self.min_tone
+                    and (not payload.off_policy_promises or self.allow_off_policy)
+                )
+
+                return JudgeScore(
+                    helpfulness=payload.helpfulness,
+                    groundedness=payload.groundedness,
+                    tone=payload.tone,
+                    off_policy_promises=payload.off_policy_promises,
+                    passed=is_passed,
+                    explanation=payload.explanation
+                    or ("Passed judge rubric." if is_passed else "Failed judge rubric."),
+                    model=model_name,
+                    temperature=getattr(self.provider, "temperature", 0.0),
+                    prompt_hash_value=prompt_key,
+                    judge_error=None,
+                    cost=total_cost,
+                    latency_ms=total_latency,
+                )
+            except Exception as exc:
+                last_error = f"{type(exc).__name__}: {exc}"
+                if attempt < self.max_retries:
+                    raw_content = ""
+                    if "response" in locals() and response.content is not None:
+                        raw_content = response.content
+                    messages.append(ChatMessage(role="assistant", content=raw_content))
+                    messages.append(
+                        ChatMessage(
+                            role="user",
+                            content=(
+                                f"Your previous response was invalid. Validation error: {last_error}. "
+                                "Please return only valid JSON matching the exact schema."
+                            ),
+                        )
+                    )
+
+        # Retries exhausted without valid parse
+        return JudgeScore(
+            helpfulness=1,
+            groundedness=1,
+            tone=1,
+            off_policy_promises=False,
+            passed=False,
+            explanation=f"Judge failed after {self.max_retries} retries: {last_error}",
+            model=model_name,
             temperature=getattr(self.provider, "temperature", 0.0),
             prompt_hash_value=prompt_key,
+            judge_error=last_error or "Validation failed",
+            cost=total_cost,
+            latency_ms=total_latency,
         )
-        if not score.passed and score.explanation == "No explanation provided.":
-            score.explanation = "The judge flagged the response as not acceptable."
-        return score
 
     async def judge_trajectory(
         self, trajectory: Trajectory, *, scenario_id: str | None = None
@@ -87,66 +167,20 @@ class JudgeScorer:
         return await self.score(trajectory, scenario_id=scenario_id)
 
     @staticmethod
-    def _parse_response(response: LLMResponse) -> dict[str, Any]:
-        """Extract JSON content from an LLM response, with graceful fallback on invalid output."""
+    def _parse_and_validate(response: LLMResponse) -> JudgePayload:
+        """Extract and validate JSON content from LLM response."""
         if response.content is None:
-            return {
-                "helpfulness": 3,
-                "groundedness": 3,
-                "tone": 3,
-                "off_policy_promises": False,
-                "passed": True,
-                "explanation": "No judge output was supplied.",
-            }
-
+            raise ValueError("Judge response content is empty")
         text = response.content.strip()
         if not text:
-            return {
-                "helpfulness": 3,
-                "groundedness": 3,
-                "tone": 3,
-                "off_policy_promises": False,
-                "passed": True,
-                "explanation": "No judge output was supplied.",
-            }
+            raise ValueError("Judge response content is empty")
 
         match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, flags=re.IGNORECASE | re.DOTALL)
         if match:
-            text = match.group(1)
+            text = match.group(1).strip()
 
-        try:
-            payload = json.loads(text)
-        except json.JSONDecodeError:
-            return {
-                "helpfulness": 3,
-                "groundedness": 3,
-                "tone": 3,
-                "off_policy_promises": False,
-                "passed": True,
-                "explanation": "Judge output could not be parsed as JSON; fallback default applied.",
-            }
+        data = json.loads(text)
+        if not isinstance(data, dict):
+            raise ValueError(f"Judge output must be a JSON object, got {type(data).__name__}")
 
-        if not isinstance(payload, dict):
-            return {
-                "helpfulness": 3,
-                "groundedness": 3,
-                "tone": 3,
-                "off_policy_promises": False,
-                "passed": True,
-                "explanation": "Judge payload was not a JSON object; fallback default applied.",
-            }
-
-        helpfulness = payload.get("helpfulness", 3)
-        groundedness = payload.get("groundedness", 3)
-        tone = payload.get("tone", 3)
-
-        return {
-            "helpfulness": max(1, min(5, int(float(helpfulness)))),
-            "groundedness": max(1, min(5, int(float(groundedness)))),
-            "tone": max(1, min(5, int(float(tone)))),
-            "off_policy_promises": bool(payload.get("off_policy_promises", False)),
-            "passed": bool(payload.get("passed", True)),
-            "explanation": str(
-                payload.get("explanation", "The judge did not provide a rationale.")
-            ),
-        }
+        return JudgePayload.model_validate(data)

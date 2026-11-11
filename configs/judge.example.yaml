@@ -1,0 +1,9 @@
+provider: litellm
+name: judge
+model: claude-3-5-sonnet-placeholder
+temperature: 0.0
+max_tokens: 1024
+api_key_env_var: ANTHROPIC_API_KEY
+cost_per_input_token: 0.000003
+cost_per_output_token: 0.000015
+extra_params: {}

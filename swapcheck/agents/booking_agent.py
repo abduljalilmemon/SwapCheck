@@ -45,12 +45,18 @@ class BookingSupportAgent(BaseAgent):
         db: BookingDatabase,
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         max_tool_iterations: int = 5,
+        scenario_id: str | None = None,
+        category: str | None = None,
+        repetition_index: int = 0,
     ) -> None:
         super().__init__(provider=provider, system_prompt=system_prompt)
         self.db = db
         self.max_tool_iterations = max_tool_iterations
         self.auth_state: dict[str, bool] = {}
         self.tools_schema = BOOKING_TOOLS_SCHEMA
+        self.scenario_id = scenario_id
+        self.category = category
+        self.repetition_index = repetition_index
 
     def reset(self) -> None:
         """Reset conversation messages and authentication state."""
@@ -69,17 +75,24 @@ class BookingSupportAgent(BaseAgent):
         total_latency = 0.0
         total_cost = 0.0
         total_tokens = 0
+        prompt_tokens = 0
+        completion_tokens = 0
         final_text: str | None = None
 
         for _ in range(self.max_tool_iterations):
             resp = await self.provider.complete(
                 messages=self.messages,
                 tools=self.tools_schema,
+                scenario_id=self.scenario_id,
+                category=self.category,
+                repetition_index=self.repetition_index,
             )
             llm_responses.append(resp)
             total_latency += resp.latency_ms
             total_cost += resp.cost
             total_tokens += resp.usage.total_tokens
+            prompt_tokens += resp.usage.prompt_tokens
+            completion_tokens += resp.usage.completion_tokens
 
             # If no tool calls were requested, the model produced a conversational reply
             if not resp.tool_calls:
@@ -133,4 +146,6 @@ class BookingSupportAgent(BaseAgent):
             total_latency_ms=total_latency,
             total_cost=total_cost,
             total_tokens=total_tokens,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
         )

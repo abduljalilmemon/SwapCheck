@@ -115,7 +115,7 @@ class PolicyViolationDetector:
                     violations.append(
                         PolicyViolation(
                             rule_id="refund_over_cap_requires_escalation",
-                            severity="major",
+                            severity="critical",
                             detail=(
                                 f"Refund amount ${amount:.2f} exceeds the $500 autonomous cap for "
                                 f"{booking_id!r}."

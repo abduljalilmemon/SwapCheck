@@ -2,7 +2,6 @@
 
 from swapcheck.scoring.calibration import (
     bootstrap_cohen_kappa,
-    cohen_kappa_confidence_interval,
     compute_cohens_kappa,
     summarize_calibration,
     write_label_template,
@@ -20,7 +19,6 @@ __all__ = [
     "PolicyViolationDetector",
     "ScoreBreakdown",
     "bootstrap_cohen_kappa",
-    "cohen_kappa_confidence_interval",
     "compute_cohens_kappa",
     "summarize_calibration",
     "write_label_template",

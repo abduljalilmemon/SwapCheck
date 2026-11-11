@@ -101,7 +101,13 @@ class ScenarioRunner:
         provider = self.provider_factory()
         cached_provider = CachedProvider(provider=provider, cache=self.cache)
         db = BookingDatabase(initial_data=scenario.initial_db_state)
-        agent = BookingSupportAgent(provider=cached_provider, db=db)
+        agent = BookingSupportAgent(
+            provider=cached_provider,
+            db=db,
+            scenario_id=scenario.id,
+            category=scenario.category,
+            repetition_index=repetition_index,
+        )
 
         trajectory = Trajectory(
             scenario_id=scenario.id,
@@ -126,11 +132,15 @@ class ScenarioRunner:
                 tool_results=result.tool_outputs,
                 latency_ms=result.total_latency_ms,
                 tokens=result.total_tokens,
+                prompt_tokens=result.prompt_tokens,
+                completion_tokens=result.completion_tokens,
                 cost=result.total_cost,
             )
             trajectory.turns.append(turn_record)
             trajectory.total_latency_ms += result.total_latency_ms
             trajectory.total_tokens += result.total_tokens
+            trajectory.prompt_tokens += result.prompt_tokens
+            trajectory.completion_tokens += result.completion_tokens
             trajectory.total_cost += result.total_cost
 
             if self.max_cost is not None:

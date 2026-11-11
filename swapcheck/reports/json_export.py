@@ -43,5 +43,6 @@ def export_json_report(
         "cost_summary": verdict.cost_summary,
         "latency_summary": verdict.latency_summary,
         "token_totals": verdict.token_totals,
+        "metadata": verdict.metadata,
     }
     return json.dumps(payload, indent=2, sort_keys=True)

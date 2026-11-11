@@ -194,11 +194,12 @@ class VerdictEngine:
         required_sample_size: int | None = None
         if verdict == "INCONCLUSIVE":
             variance = float(np.var(delta_values, ddof=1)) if len(delta_values) > 1 else 0.0
-            numerator = 2.0 * (1.96 + 0.84) ** 2 * variance
+            numerator = (1.96 + 0.84) ** 2 * variance
             if self.epsilon_overall > 0.0:
-                required_sample_size = max(1, int(ceil(numerator / (self.epsilon_overall**2))))
+                calc_n = int(ceil(numerator / (self.epsilon_overall**2)))
+                required_sample_size = max(calc_n, self.min_scenarios)
             else:
-                required_sample_size = 1
+                required_sample_size = self.min_scenarios
 
         cost_summary = {
             "baseline": self._cost_summary(scenario_results, config="baseline"),
@@ -232,8 +233,8 @@ class VerdictEngine:
         return VerdictResult(
             verdict=verdict,
             reasons=reasons,
-            overall_delta=float(overall.estimate),
-            overall_ci=(float(overall.lower), float(overall.upper)),
+            overall_delta=overall.estimate,
+            overall_ci=(overall.lower, overall.upper),
             required_sample_size=required_sample_size,
             underpowered_categories=underpowered_categories,
             category_results=category_results,

@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+import os
+import time
 from typing import Any
+
+# Ensure LiteLLM uses local backup model cost map and doesn't hang fetching remote json
+os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
+os.environ["LITELLM_TELEMETRY"] = "False"
 
 from litellm import acompletion
 
@@ -20,12 +26,16 @@ class LiteLLMProvider(BaseProvider):
         api_key: str | None = None,
         base_url: str | None = None,
         max_tokens: int | None = None,
+        cost_per_input_token: float | None = None,
+        cost_per_output_token: float | None = None,
         **extra_kwargs: Any,
     ) -> None:
         super().__init__(model_name=model_name, temperature=temperature)
         self.api_key = api_key
         self.base_url = base_url
         self.max_tokens = max_tokens
+        self.cost_per_input_token = cost_per_input_token
+        self.cost_per_output_token = cost_per_output_token
         self.extra_kwargs = extra_kwargs
 
     async def complete(
@@ -50,7 +60,9 @@ class LiteLLMProvider(BaseProvider):
         payload.update(self.extra_kwargs)
         payload.update(kwargs)
 
+        start_time = time.perf_counter()
         result = await acompletion(**payload)
+        latency_ms = (time.perf_counter() - start_time) * 1000.0
 
         choice = result.choices[0]
         message = choice.message
@@ -92,12 +104,18 @@ class LiteLLMProvider(BaseProvider):
         prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
         completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
         total_tokens = int(getattr(usage, "total_tokens", prompt_tokens + completion_tokens) or 0)
-        cost = (
-            getattr(result, "_hidden_params", {}).get("response_cost", 0.0)
-            if hasattr(result, "_hidden_params")
-            else 0.0
-        )
-        latency_ms = 0.0
+
+        if self.cost_per_input_token is not None or self.cost_per_output_token is not None:
+            cost = (prompt_tokens * (self.cost_per_input_token or 0.0)) + (
+                completion_tokens * (self.cost_per_output_token or 0.0)
+            )
+        else:
+            raw_cost = (
+                getattr(result, "_hidden_params", {}).get("response_cost", 0.0)
+                if hasattr(result, "_hidden_params")
+                else 0.0
+            )
+            cost = float(raw_cost or 0.0)
 
         return LLMResponse(
             content=content,

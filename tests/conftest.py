@@ -1,7 +1,15 @@
 """Shared pytest fixtures for SwapCheck tests."""
 
+import asyncio
+import os
+import sys
 from collections.abc import Generator
 from pathlib import Path
+
+os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 import pytest
 

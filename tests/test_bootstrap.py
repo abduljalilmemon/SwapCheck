@@ -13,7 +13,7 @@ def test_bootstrap_reproduces_known_difference_in_most_datasets() -> None:
         true_delta = 0.12
         baseline = rng.random(60)
         candidate = np.clip(baseline + true_delta + rng.normal(0.0, 0.10, 60), 0.0, 1.0)
-        result = paired_scenario_bootstrap(baseline, candidate, resamples=2000, seed=idx)
+        result = paired_scenario_bootstrap(baseline.tolist(), candidate.tolist(), resamples=2000, seed=idx)
         ci = result["overall"]
         if ci[0] <= true_delta <= ci[1]:
             covered += 1

@@ -225,3 +225,4 @@ __marimo__/
 .swapcheck_cache.db*
 *.db
 *.sqlite
+runs/

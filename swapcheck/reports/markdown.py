@@ -58,6 +58,30 @@ def render_markdown_report(
                 f"| {name} | {result.status} | {result.estimate:.3f} | {ci_text} | {str(result.powered).lower()} |"
             )
 
+    if "judge_metrics" in verdict.metadata:
+        judge_info = verdict.metadata["judge_metrics"]
+        lines.append("")
+        lines.append("### Judge metrics")
+        lines.append("")
+        if "model" in judge_info:
+            lines.append(f"- Judge model: {judge_info['model']}")
+        if "total_cost" in judge_info:
+            lines.append(f"- Judge total cost: ${float(judge_info['total_cost']):.4f}")
+        if "total_errors" in judge_info:
+            lines.append(f"- Judge errors: {judge_info['total_errors']}")
+        lines.append("")
+        lines.append(
+            "| Config | Category | Helpfulness | Groundedness | Tone | Off-policy rate | Judge pass rate | Errors |"
+        )
+        lines.append(
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |"
+        )
+        for row in judge_info.get("rows", []):
+            lines.append(
+                f"| {row['config']} | {row['category']} | {row['helpfulness']:.2f} | {row['groundedness']:.2f} | "
+                f"{row['tone']:.2f} | {row['off_policy_rate']:.1%} | {row['judge_pass_rate']:.1%} | {row['errors']} |"
+            )
+
     lines.extend(
         [
             "",
