@@ -188,3 +188,28 @@ def test_label_template_columns(tmp_path: Path) -> None:
     header = written.read_text(encoding="utf-8").splitlines()[0]
     expected = "trajectory_id,human_passed,human_helpfulness,human_groundedness,human_tone,human_off_policy_promise,notes"
     assert header == expected
+
+
+def test_kappa_is_flagged_undefined_when_labels_never_vary(tmp_path: Path) -> None:
+    """If human and judge always say 'pass', kappa is undefined, not 'perfect agreement'."""
+    csv_path = tmp_path / "labels.csv"
+    csv_path.write_text(
+        "trajectory_id,human_passed,human_helpfulness,human_groundedness,human_tone,"
+        "human_off_policy_promise,notes\n"
+        "t1,true,4,5,4,false,\nt2,true,4,5,4,false,\nt3,true,4,5,4,false,\n",
+        encoding="utf-8",
+    )
+    judge_results = {
+        tid: {
+            "passed": True,
+            "helpfulness": 4,
+            "groundedness": 5,
+            "tone": 4,
+            "off_policy_promises": False,
+        }
+        for tid in ("t1", "t2", "t3")
+    }
+    summary = summarize_calibration(csv_path, judge_results=judge_results, seed=0)
+    assert summary["kappa_defined"] is False
+    assert summary["kappa_off_policy_defined"] is False
+    assert summary["raw_agreement"] == 1.0

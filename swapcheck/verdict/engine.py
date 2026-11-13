@@ -51,6 +51,8 @@ class VerdictEngine:
         )
 
         reasons: list[str] = []
+        blockers: list[str] = []
+        notes: list[str] = []
         category_results: dict[str, CategoryResult] = {}
         underpowered_categories: list[str] = []
         categories: dict[str, list[ScenarioResult]] = defaultdict(list)
@@ -101,12 +103,14 @@ class VerdictEngine:
                     f"Category '{category_name}' interval spans the category margin: [{lower:.3f}, {upper:.3f}]."
                 )
 
-            blockers = [
+            category_blockers = [
                 reason
                 for reason in category_reasons
                 if "degradation" in reason.lower() or "significant" in reason.lower()
             ]
-            notes = [reason for reason in category_reasons if reason not in blockers]
+            category_notes = [
+                reason for reason in category_reasons if reason not in category_blockers
+            ]
             category_results[category_name] = CategoryResult(
                 category=category_name,
                 scenario_count=count,
@@ -115,22 +119,24 @@ class VerdictEngine:
                 powered=True,
                 status=status,
                 reasons=category_reasons,
-                blockers=blockers,
-                notes=notes,
+                blockers=category_blockers,
+                notes=category_notes,
             )
 
         if len(scenario_results) < self.min_scenarios:
-            reasons.append(
+            blockers.append(
                 f"Overall sample size below minimum ({len(scenario_results)} < {self.min_scenarios})."
             )
 
-        if any(
+        low_repetitions = any(
             row.baseline_repetitions < self.min_repetitions
             or row.candidate_repetitions < self.min_repetitions
             for row in scenario_results
-        ):
-            reasons.append(
-                f"At least one scenario has fewer than {self.min_repetitions} repetitions under one config."
+        )
+        if low_repetitions:
+            blockers.append(
+                f"Repetitions below minimum: at least one scenario has fewer than "
+                f"{self.min_repetitions} repetitions under one config."
             )
 
         delta_values = np.asarray(
@@ -141,26 +147,26 @@ class VerdictEngine:
             int(row.new_critical_policy_violations) for row in scenario_results
         )
         if total_new_violations > 0:
-            reasons.append(f"New critical policy violations detected: {total_new_violations}.")
+            blockers.append(f"New critical policy violations detected: {total_new_violations}.")
 
         if overall.upper < -self.epsilon_overall:
-            reasons.append(
+            blockers.append(
                 "Overall candidate is definitively worse than baseline: upper CI "
                 f"{overall.upper:.3f} < -{self.epsilon_overall:.2f}."
             )
         elif overall.lower < -self.epsilon_overall <= overall.upper:
-            reasons.append(
+            blockers.append(
                 "Overall interval spans the decision margin and remains inconclusive: "
                 f"[{overall.lower:.3f}, {overall.upper:.3f}] crosses -{self.epsilon_overall:.2f}."
             )
         elif overall.lower >= -self.epsilon_overall:
-            reasons.append(
+            notes.append(
                 "Overall non-inferiority holds: lower CI "
                 f"{overall.lower:.3f} >= -{self.epsilon_overall:.2f}."
             )
 
         if any(result.status == "FAIL" for result in category_results.values()):
-            reasons.append(
+            blockers.append(
                 "At least one powered category has a statistically significant degradation."
             )
 
@@ -186,10 +192,27 @@ class VerdictEngine:
                 if result.powered
             )
             and total_new_violations == 0
+            and not low_repetitions
         ):
             verdict = "SHIP"
         else:
             verdict = "INCONCLUSIVE"
+            for category_result in category_results.values():
+                if category_result.powered and category_result.status == "INCONCLUSIVE":
+                    blockers.append(
+                        f"Category '{category_result.category}' is inconclusive: its interval "
+                        f"[{category_result.ci[0]:.3f}, {category_result.ci[1]:.3f}] spans the "
+                        f"category margin -{self.epsilon_category:.2f}."
+                    )
+            if (
+                len(scenario_results) >= self.min_scenarios
+                and overall.lower >= -self.epsilon_overall
+                and overall.width > 2 * self.epsilon_overall
+            ):
+                blockers.append(
+                    f"Overall interval too wide to establish non-inferiority: width "
+                    f"{overall.width:.3f} > {2 * self.epsilon_overall:.2f}."
+                )
 
         required_sample_size: int | None = None
         if verdict == "INCONCLUSIVE":
@@ -214,21 +237,7 @@ class VerdictEngine:
             "candidate": self._token_totals(scenario_results, config="candidate"),
         }
 
-        blockers = [
-            reason
-            for reason in reasons
-            if any(
-                token in reason.lower()
-                for token in (
-                    "degradation",
-                    "worse",
-                    "critical policy",
-                    "below minimum",
-                    "significant",
-                )
-            )
-        ]
-        notes = [reason for reason in reasons if reason not in blockers]
+        reasons = blockers + notes
 
         return VerdictResult(
             verdict=verdict,

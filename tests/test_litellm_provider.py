@@ -58,7 +58,9 @@ async def test_litellm_provider_tool_call_parsing_and_latency() -> None:
     mock_result = MockCompletionResult(content="Checking booking", tool_calls=[fake_tool_call])
 
     provider = LiteLLMProvider(model_name="mock-gpt")
-    with patch("swapcheck.providers.litellm_provider.acompletion", new=AsyncMock(return_value=mock_result)):
+    with patch(
+        "swapcheck.providers.litellm_provider.acompletion", new=AsyncMock(return_value=mock_result)
+    ):
         response = await provider.complete([ChatMessage(role="user", content="Lookup BKG-999")])
 
     assert response.content == "Checking booking"
@@ -85,7 +87,9 @@ async def test_litellm_provider_custom_cost_calculation() -> None:
         cost_per_output_token=0.00002,
     )
 
-    with patch("swapcheck.providers.litellm_provider.acompletion", new=AsyncMock(return_value=mock_result)):
+    with patch(
+        "swapcheck.providers.litellm_provider.acompletion", new=AsyncMock(return_value=mock_result)
+    ):
         response = await provider.complete([ChatMessage(role="user", content="Hi")])
 
     # 100 * 0.00001 = 0.001; 50 * 0.00002 = 0.001; total = 0.002
@@ -95,10 +99,14 @@ async def test_litellm_provider_custom_cost_calculation() -> None:
 @pytest.mark.asyncio
 async def test_litellm_provider_fallback_response_cost() -> None:
     """LiteLLMProvider falls back to response_cost from LiteLLM when no manual cost override is set."""
-    mock_result = MockCompletionResult(prompt_tokens=10, completion_tokens=10, response_cost=0.00035)
+    mock_result = MockCompletionResult(
+        prompt_tokens=10, completion_tokens=10, response_cost=0.00035
+    )
     provider = LiteLLMProvider(model_name="mock-gpt")
 
-    with patch("swapcheck.providers.litellm_provider.acompletion", new=AsyncMock(return_value=mock_result)):
+    with patch(
+        "swapcheck.providers.litellm_provider.acompletion", new=AsyncMock(return_value=mock_result)
+    ):
         response = await provider.complete([ChatMessage(role="user", content="Hi")])
 
     assert pytest.approx(response.cost, rel=1e-5) == 0.00035
@@ -113,5 +121,31 @@ def test_build_provider_missing_api_key_raises(monkeypatch: pytest.MonkeyPatch) 
         model="gpt-test",
         api_key_env_var="CUSTOM_MISSING_API_KEY",
     )
-    with pytest.raises(ValueError, match="API key environment variable 'CUSTOM_MISSING_API_KEY' for model 'gpt-test' is not set."):
+    with pytest.raises(
+        ValueError,
+        match="API key environment variable 'CUSTOM_MISSING_API_KEY' for model 'gpt-test' is not set.",
+    ):
         build_provider(config)
+
+
+@pytest.mark.asyncio
+async def test_internal_bookkeeping_kwargs_are_never_sent_to_the_model_api() -> None:
+    """scenario_id / category / repetition_index are harness metadata, not API parameters."""
+    provider = LiteLLMProvider(model_name="mock-gpt")
+    mock_result = MockCompletionResult(content="ok")
+    with patch(
+        "swapcheck.providers.litellm_provider.acompletion",
+        new=AsyncMock(return_value=mock_result),
+    ) as mocked:
+        await provider.complete(
+            [ChatMessage(role="user", content="hi")],
+            scenario_id="BKG-1",
+            category="cancellation",
+            repetition_index=2,
+            top_p=0.9,
+        )
+    sent = mocked.await_args.kwargs
+    assert "scenario_id" not in sent
+    assert "category" not in sent
+    assert "repetition_index" not in sent
+    assert sent["top_p"] == 0.9

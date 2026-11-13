@@ -33,8 +33,12 @@ class DeterministicScorer:
         )
 
         detector = PolicyViolationDetector()
-        breakdown.policy_violations = detector.detect(trajectory)
+        breakdown.policy_violations = detector.detect(
+            trajectory, current_time=scenario.current_time
+        )
         for violation in breakdown.policy_violations:
+            if violation.severity == "minor":
+                continue
             breakdown.add_failure(
                 f"[{violation.rule_id}] {violation.detail or 'Policy violation detected.'}"
             )

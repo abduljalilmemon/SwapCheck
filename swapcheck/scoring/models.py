@@ -51,5 +51,10 @@ class ScoreBreakdown(BaseModel):
             and self.args_valid
             and self.db_state_matches
             and not self.forbidden_action_violations
-            and not self.policy_violations
+            and not self.blocking_violations
         )
+
+    @property
+    def blocking_violations(self) -> list[PolicyViolation]:
+        """Violations that fail a trajectory. Minor flags only mark items for judge review."""
+        return [v for v in self.policy_violations if v.severity != "minor"]

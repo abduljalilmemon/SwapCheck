@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from swapcheck.verdict.models import VerdictResult
 
@@ -13,6 +14,7 @@ def export_json_report(
     baseline_name: str,
     candidate_name: str,
     suite_path: str,
+    summary: dict[str, Any] | None = None,
 ) -> str:
     """Render a machine-readable summary of the verdict."""
     payload: dict[str, object] = {
@@ -44,5 +46,6 @@ def export_json_report(
         "latency_summary": verdict.latency_summary,
         "token_totals": verdict.token_totals,
         "metadata": verdict.metadata,
+        "summary": summary or {},
     }
     return json.dumps(payload, indent=2, sort_keys=True)

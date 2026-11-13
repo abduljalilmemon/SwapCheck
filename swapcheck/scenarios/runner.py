@@ -61,7 +61,9 @@ class ScenarioRunner:
         provider_factory: Callable[[], BaseProvider] | None = None,
         cache: ResponseCache | None = None,
         max_cost: float | None = None,
+        use_cache: bool = True,
     ) -> None:
+        self.use_cache = use_cache
         self.repetitions = max(1, repetitions)
         self.max_concurrency = max(1, max_concurrency)
         self.provider_factory = provider_factory or (lambda: MockProvider(model_name="mock-runner"))
@@ -99,7 +101,9 @@ class ScenarioRunner:
 
     async def _run_scenario(self, scenario: Scenario, repetition_index: int = 0) -> Trajectory:
         provider = self.provider_factory()
-        cached_provider = CachedProvider(provider=provider, cache=self.cache)
+        cached_provider: BaseProvider = (
+            CachedProvider(provider=provider, cache=self.cache) if self.use_cache else provider
+        )
         db = BookingDatabase(initial_data=scenario.initial_db_state)
         agent = BookingSupportAgent(
             provider=cached_provider,
@@ -107,6 +111,7 @@ class ScenarioRunner:
             scenario_id=scenario.id,
             category=scenario.category,
             repetition_index=repetition_index,
+            current_time=scenario.current_time,
         )
 
         trajectory = Trajectory(

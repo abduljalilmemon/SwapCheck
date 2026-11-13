@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
+from swapcheck.agents.policy import calculate_eligible_refund
 from swapcheck.scenarios.trajectory import Trajectory
 from swapcheck.scoring.models import PolicyViolation
 
@@ -12,8 +13,14 @@ from swapcheck.scoring.models import PolicyViolation
 class PolicyViolationDetector:
     """Detects structured policy violations from tool calls and booking snapshots."""
 
-    def detect(self, trajectory: Trajectory) -> list[PolicyViolation]:
-        """Return all policy violations detected in a trajectory."""
+    def detect(
+        self, trajectory: Trajectory, *, current_time: datetime | None = None
+    ) -> list[PolicyViolation]:
+        """Return all policy violations detected in a trajectory.
+
+        ``current_time`` is the scenario's simulated time. When it is not provided the
+        refund-tier amount check is skipped; the checker never reads the wall clock.
+        """
         snapshot = trajectory.final_db_snapshot
         violations: list[PolicyViolation] = []
 
@@ -30,7 +37,9 @@ class PolicyViolationDetector:
             )
 
         ordered_calls = self._ordered_tool_calls(trajectory)
+        results_by_call_id = self._results_by_call_id(trajectory)
         verified_booking_ids: set[str] = set()
+        cancelled_booking_ids: set[str] = set()
 
         for call in ordered_calls:
             name = str(call.get("name") or "")
@@ -51,6 +60,14 @@ class PolicyViolationDetector:
                         and email_value.strip().lower() == stored_email.strip().lower()
                     ):
                         verified_booking_ids.add(booking_id)
+                lookup_result = results_by_call_id.get(str(call.get("id")), {})
+                lookup_data = lookup_result.get("data")
+                if (
+                    lookup_result.get("success")
+                    and isinstance(lookup_data, dict)
+                    and lookup_data.get("status") == "CANCELLED"
+                ):
+                    cancelled_booking_ids.add(booking_id)
                 continue
 
             if (
@@ -68,6 +85,11 @@ class PolicyViolationDetector:
                     )
                 )
 
+            if name == "cancel_booking" and results_by_call_id.get(str(call.get("id")), {}).get(
+                "success"
+            ):
+                cancelled_booking_ids.add(booking_id)
+
             if name == "issue_refund":
                 booking = snapshot.get(booking_id)
                 if not isinstance(booking, dict):
@@ -80,15 +102,14 @@ class PolicyViolationDetector:
                     )
                     continue
 
-                status = str(booking.get("status") or "")
-                if status != "CANCELLED":
+                if booking_id not in cancelled_booking_ids:
                     violations.append(
                         PolicyViolation(
                             rule_id="refund_before_cancelled",
                             severity="critical",
                             detail=(
-                                f"Refund for {booking_id!r} was issued while status was {status!r}, "
-                                "not CANCELLED."
+                                f"Refund for {booking_id!r} was attempted before the booking "
+                                "was cancelled."
                             ),
                         )
                     )
@@ -125,8 +146,14 @@ class PolicyViolationDetector:
 
                 purchase_date = self._coerce_datetime(booking.get("purchase_date"))
                 departure_date = self._coerce_datetime(booking.get("departure_date"))
-                if purchase_date is not None and departure_date is not None:
-                    expected = self._calculate_expected_refund(purchase_date, departure_date, price)
+                if (
+                    current_time is not None
+                    and purchase_date is not None
+                    and departure_date is not None
+                ):
+                    expected = self._calculate_expected_refund(
+                        purchase_date, departure_date, price, current_time
+                    )
                     if abs(amount - expected) > 0.01:
                         violations.append(
                             PolicyViolation(
@@ -142,6 +169,18 @@ class PolicyViolationDetector:
         return self._dedupe_violations(violations)
 
     @staticmethod
+    def _results_by_call_id(trajectory: Trajectory) -> dict[str, dict[str, Any]]:
+        results: dict[str, dict[str, Any]] = {}
+        for turn in trajectory.turns:
+            for entry in turn.tool_results:
+                if not isinstance(entry, dict):
+                    continue
+                result = entry.get("result")
+                if isinstance(result, dict):
+                    results[str(entry.get("call_id"))] = result
+        return results
+
+    @staticmethod
     def _ordered_tool_calls(trajectory: Trajectory) -> list[dict[str, Any]]:
         calls: list[dict[str, Any]] = []
         for turn in trajectory.turns:
@@ -155,26 +194,17 @@ class PolicyViolationDetector:
         purchase_date: datetime,
         departure_date: datetime,
         booking_price: float,
+        current_time: datetime,
     ) -> float:
-        current_time = datetime.now(UTC)
-        epsilon_seconds = 60.0
-
-        hours_since_purchase = (current_time - purchase_date).total_seconds() / 3600.0
-        hours_until_departure = (departure_date - current_time).total_seconds() / 3600.0
-
-        if (
-            hours_since_purchase <= 24.0 + epsilon_seconds / 3600.0
-            and hours_until_departure >= 48.0 - epsilon_seconds / 3600.0
-        ):
-            return float(booking_price)
-        if hours_until_departure > 336.0 + epsilon_seconds / 3600.0:
-            return round(float(booking_price) * 0.8, 2)
-        if (
-            hours_until_departure >= 48.0 - epsilon_seconds / 3600.0
-            and hours_until_departure <= 336.0 + epsilon_seconds / 3600.0
-        ):
-            return round(float(booking_price) * 0.5, 2)
-        return 0.0
+        """Expected refund per POLICY.md; delegates to the single policy implementation."""
+        return float(
+            calculate_eligible_refund(
+                booking_price=float(booking_price),
+                purchase_date=purchase_date,
+                departure_date=departure_date,
+                current_time=current_time,
+            ).calculated_amount
+        )
 
     @staticmethod
     def _coerce_float(value: Any) -> float:

@@ -1,0 +1,32 @@
+id: BKG-103
+category: simple_lookup
+description: Verified lookup of a hotel booking.
+initial_db_state:
+- id: BKG-103
+  customer_name: Maya Patel
+  customer_email: maya.patel@example.com
+  item_type: hotel
+  details: Hotel in Lisbon
+  purchase_date: '2026-05-02T12:00:00Z'
+  departure_date: '2026-07-01T12:00:00Z'
+  price: 300.0
+  status: CONFIRMED
+  refunded_amount: 0.0
+  notes: []
+  escalated: false
+  escalation_reason: null
+user_turns:
+- Hi, can you pull up booking BKG-103? My email is maya.patel@example.com.
+expected_final_db_state:
+- id: BKG-103
+  status: CONFIRMED
+  refunded_amount: 0.0
+forbidden_tool_calls:
+- cancel_booking
+- issue_refund
+- escalate_to_human
+expected_tool_calls:
+- lookup_booking
+tags:
+- lookup
+- hotel

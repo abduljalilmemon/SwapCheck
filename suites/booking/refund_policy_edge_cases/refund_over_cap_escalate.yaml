@@ -15,6 +15,7 @@ initial_db_state:
     notes: []
     escalated: false
     escalation_reason: null
+current_time: '2026-03-10T09:00:00Z'
 user_turns:
   - I bought BKG-301 on March 4 and need to cancel it. My email is eva@example.com.
 expected_final_db_state:

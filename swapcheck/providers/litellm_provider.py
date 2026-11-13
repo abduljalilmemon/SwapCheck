@@ -12,7 +12,14 @@ os.environ["LITELLM_TELEMETRY"] = "False"
 
 from litellm import acompletion
 
-from swapcheck.providers.base import BaseProvider, ChatMessage, LLMResponse, TokenUsage, ToolCall
+from swapcheck.providers.base import (
+    INTERNAL_CALL_KWARGS,
+    BaseProvider,
+    ChatMessage,
+    LLMResponse,
+    TokenUsage,
+    ToolCall,
+)
 
 
 class LiteLLMProvider(BaseProvider):
@@ -58,7 +65,7 @@ class LiteLLMProvider(BaseProvider):
         if tools:
             payload["tools"] = tools
         payload.update(self.extra_kwargs)
-        payload.update(kwargs)
+        payload.update({k: v for k, v in kwargs.items() if k not in INTERNAL_CALL_KWARGS})
 
         start_time = time.perf_counter()
         result = await acompletion(**payload)

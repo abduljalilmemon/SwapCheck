@@ -15,6 +15,7 @@ initial_db_state:
     notes: []
     escalated: false
     escalation_reason: null
+current_time: '2026-04-01T14:00:00Z'
 user_turns:
   - I booked BKG-302 today and need to cancel it. My email is frank@example.com.
 expected_final_db_state:

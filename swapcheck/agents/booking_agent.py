@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from swapcheck.agents.base import AgentStepResult, BaseAgent
@@ -48,7 +49,15 @@ class BookingSupportAgent(BaseAgent):
         scenario_id: str | None = None,
         category: str | None = None,
         repetition_index: int = 0,
+        current_time: datetime | None = None,
     ) -> None:
+        if current_time is not None:
+            utc_time = current_time if current_time.tzinfo else current_time.replace(tzinfo=UTC)
+            utc_time = utc_time.astimezone(UTC)
+            system_prompt = (
+                f"{system_prompt.rstrip()}\n\n"
+                f"Current date and time (UTC): {utc_time.strftime('%Y-%m-%dT%H:%M:%SZ')}"
+            )
         super().__init__(provider=provider, system_prompt=system_prompt)
         self.db = db
         self.max_tool_iterations = max_tool_iterations

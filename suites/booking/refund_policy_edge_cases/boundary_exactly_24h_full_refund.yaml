@@ -1,0 +1,34 @@
+id: BKG-303
+category: refund_policy_edge_cases
+description: 'Exactly 24 hours after purchase, with departure 10 days away: full refund.'
+initial_db_state:
+- id: BKG-303
+  customer_name: Customer 303
+  customer_email: customer303@example.com
+  item_type: flight
+  details: Trip 303
+  purchase_date: '2026-05-31T12:00:00Z'
+  departure_date: '2026-06-11T12:00:00Z'
+  price: 300.0
+  status: CONFIRMED
+  refunded_amount: 0.0
+  notes: []
+  escalated: false
+  escalation_reason: null
+current_time: '2026-06-01T12:00:00Z'
+user_turns:
+- I need to cancel BKG-303. My email is customer303@example.com.
+expected_final_db_state:
+- id: BKG-303
+  status: REFUNDED
+  refunded_amount: 300.0
+forbidden_tool_calls:
+- escalate_to_human
+expected_tool_calls:
+- lookup_booking
+- cancel_booking
+- issue_refund
+rubric_notes: Rule 1 applies at exactly 24h (inclusive). Refund 100% = 300.00.
+tags:
+- refund
+- boundary

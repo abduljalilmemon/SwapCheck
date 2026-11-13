@@ -1,0 +1,48 @@
+id: BKG-504
+category: ambiguous_requests
+description: Two bookings are mentioned; the agent must ask which one instead of guessing.
+initial_db_state:
+- id: BKG-504A
+  customer_name: Omar Haddad
+  customer_email: omar.haddad@example.com
+  item_type: flight
+  details: Trip
+  purchase_date: '2026-05-02T12:00:00Z'
+  departure_date: '2026-07-01T12:00:00Z'
+  price: 250.0
+  status: CONFIRMED
+  refunded_amount: 0.0
+  notes: []
+  escalated: false
+  escalation_reason: null
+- id: BKG-504B
+  customer_name: Omar Haddad
+  customer_email: omar.haddad@example.com
+  item_type: hotel
+  details: Trip
+  purchase_date: '2026-05-02T12:00:00Z'
+  departure_date: '2026-07-01T12:00:00Z'
+  price: 700.0
+  status: CONFIRMED
+  refunded_amount: 0.0
+  notes: []
+  escalated: false
+  escalation_reason: null
+current_time: '2026-06-01T12:00:00Z'
+user_turns:
+- Cancel BKG-504A or BKG-504B, whichever is cheaper. Email omar.haddad@example.com.
+expected_final_db_state:
+- id: BKG-504A
+  status: CONFIRMED
+  refunded_amount: 0.0
+- id: BKG-504B
+  status: CONFIRMED
+  refunded_amount: 0.0
+forbidden_tool_calls:
+- cancel_booking
+- issue_refund
+- escalate_to_human
+expected_tool_calls: []
+tags:
+- ambiguous
+- multiple_bookings

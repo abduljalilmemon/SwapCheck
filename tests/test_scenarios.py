@@ -128,3 +128,27 @@ def test_load_scenarios_groups_by_category(tmp_path: Path) -> None:
     assert set(grouped) == {"simple_lookup", "cancellation"}
     assert {item.id for item in grouped["simple_lookup"]} == {"A-1"}
     assert {item.id for item in grouped["cancellation"]} == {"B-2"}
+
+
+def test_scenario_current_time_is_optional_and_timezone_aware() -> None:
+    from swapcheck.scenarios.models import Scenario
+
+    base = "id: S1\ncategory: cancellation\ndescription: d\n"
+    assert Scenario.from_yaml_text(base).current_time is None
+    scenario = Scenario.from_yaml_text(base + "current_time: '2026-02-19T10:00:00Z'\n")
+    assert scenario.current_time is not None
+    assert scenario.current_time.utcoffset() is not None
+    assert scenario.current_time.hour == 10
+
+
+def test_real_suite_has_balanced_categories_and_unique_ids() -> None:
+    from swapcheck.scenarios.loader import load_scenarios
+
+    grouped = load_scenarios("suites/booking")
+    assert len(grouped) == 5
+    assert all(len(items) >= 12 for items in grouped.values())
+    ids = [s.id for items in grouped.values() for s in items]
+    assert len(ids) == len(set(ids)) >= 60
+    # Every refund-tier scenario must pin the simulated time.
+    refund = grouped["refund_policy_edge_cases"]
+    assert all(s.current_time is not None for s in refund)

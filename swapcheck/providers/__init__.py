@@ -37,7 +37,9 @@ def build_provider(config: ModelConfig) -> BaseProvider:
                     f"API key environment variable '{config.api_key_env_var}' for model '{config.model}' is not set."
                 )
 
-        extra_kwargs = {k: v for k, v in config.extra_params.items() if k not in {"api_key", "base_url"}}
+        extra_kwargs = {
+            k: v for k, v in config.extra_params.items() if k not in {"api_key", "base_url"}
+        }
         return LiteLLMProvider(
             model_name=config.model,
             temperature=config.temperature,

@@ -30,6 +30,12 @@ def build_judge_prompt(
             ]
             if tool_lines:
                 transcript_lines.extend(tool_lines)
+        for entry in turn.tool_results:
+            if isinstance(entry, dict):
+                result_text = str(entry.get("result", {}))
+                if len(result_text) > 400:
+                    result_text = result_text[:400] + "..."
+                transcript_lines.append(f"  -> {entry.get('name', 'tool')} result: {result_text}")
 
     transcript = "\n".join(transcript_lines) or "No transcript available."
     policy_text = policy_text or (

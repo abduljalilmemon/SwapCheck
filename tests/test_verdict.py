@@ -107,3 +107,37 @@ def test_verdict_reports_cost_latency_and_tokens() -> None:
     assert "candidate" in result.latency_summary
     assert "baseline" in result.token_totals
     assert "candidate" in result.token_totals
+
+
+def test_inconclusive_category_blocks_ship_and_explains_why() -> None:
+    """A powered category whose interval spans the margin must not be silently ignored."""
+    stable = _scenario_rows(baseline=0.9, candidate=0.9, category="stable", count=52)
+    noisy = _scenario_rows(baseline=0.9, candidate=0.9, category="noisy", count=8)
+    # Alternate large gains and large losses so the category mean is ~0 but the CI is wide.
+    for index, row in enumerate(noisy):
+        row.candidate_pass_rate = 1.0 if index % 2 == 0 else 0.0
+        row.baseline_pass_rate = 0.5
+
+    result = VerdictEngine(bootstrap_resamples=500, seed=1).evaluate(stable + noisy)
+
+    assert result.category_results["noisy"].status == "INCONCLUSIVE"
+    assert result.verdict == "INCONCLUSIVE"
+    assert any("Category 'noisy' is inconclusive" in blocker for blocker in result.blockers)
+
+
+def test_too_few_repetitions_is_a_blocker() -> None:
+    rows = _scenario_rows(baseline=0.9, candidate=0.9, count=60)
+    for row in rows:
+        row.candidate_repetitions = 1
+    result = VerdictEngine(min_repetitions=3).evaluate(rows)
+    assert result.verdict != "SHIP"
+    assert any("Repetitions below minimum" in blocker for blocker in result.blockers)
+
+
+def test_blockers_are_not_overwritten_by_category_processing() -> None:
+    """Regression: a category loop once shadowed the overall `blockers` list."""
+    rows = _scenario_rows(baseline=0.9, candidate=0.9, category="a", count=20)
+    rows += _scenario_rows(baseline=0.9, candidate=0.9, category="b", count=20)
+    result = VerdictEngine(min_scenarios=50).evaluate(rows)
+    assert result.verdict == "INCONCLUSIVE"
+    assert any("sample size below minimum" in blocker for blocker in result.blockers)

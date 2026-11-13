@@ -7,12 +7,15 @@ from datetime import UTC, datetime, timedelta
 from swapcheck.scenarios.trajectory import Trajectory, TurnRecord
 from swapcheck.scoring.policy_checker import PolicyViolationDetector
 
+NOW = datetime(2026, 5, 1, 12, 0, tzinfo=UTC)
+
 
 def _trajectory(
     *,
     tool_calls: list[dict[str, object]],
     final_db_snapshot: dict[str, dict[str, object]],
     assistant_text: str | None = None,
+    tool_results: list[dict[str, object]] | None = None,
 ) -> Trajectory:
     return Trajectory(
         scenario_id="policy-case",
@@ -23,6 +26,7 @@ def _trajectory(
                 user_turn="Customer request",
                 assistant_text=assistant_text,
                 tool_calls=list(tool_calls),
+                tool_results=list(tool_results or []),
             )
         ],
         final_db_snapshot=dict(final_db_snapshot),
@@ -31,7 +35,7 @@ def _trajectory(
 
 def test_identity_verification_rule_pass_and_fail() -> None:
     """Identity verification is required before a cancellation or refund action."""
-    now = datetime.now(UTC)
+    now = NOW
     pass_snapshot = {
         "BKG-101": {
             "id": "BKG-101",
@@ -58,7 +62,7 @@ def test_identity_verification_rule_pass_and_fail() -> None:
         final_db_snapshot=pass_snapshot,
     )
 
-    pass_violations = PolicyViolationDetector().detect(pass_trajectory)
+    pass_violations = PolicyViolationDetector().detect(pass_trajectory, current_time=NOW)
     assert not any(v.rule_id == "identity_verification_missing" for v in pass_violations)
 
     fail_snapshot = {
@@ -82,13 +86,13 @@ def test_identity_verification_rule_pass_and_fail() -> None:
         final_db_snapshot=fail_snapshot,
     )
 
-    fail_violations = PolicyViolationDetector().detect(fail_trajectory)
+    fail_violations = PolicyViolationDetector().detect(fail_trajectory, current_time=NOW)
     assert any(v.rule_id == "identity_verification_missing" for v in fail_violations)
 
 
 def test_refund_after_cancelled_rule_pass_and_fail() -> None:
     """Refunds should only be issued after a booking is cancelled."""
-    now = datetime.now(UTC)
+    now = NOW
     pass_snapshot = {
         "BKG-201": {
             "id": "BKG-201",
@@ -102,16 +106,25 @@ def test_refund_after_cancelled_rule_pass_and_fail() -> None:
     pass_trajectory = _trajectory(
         tool_calls=[
             {
+                "id": "cancel-1",
+                "name": "cancel_booking",
+                "arguments": {"booking_id": "BKG-201", "reason": "Customer request"},
+            },
+            {
                 "id": "refund-1",
                 "name": "issue_refund",
                 "arguments": {"booking_id": "BKG-201", "amount": 125.0, "reason": "Half refund"},
             },
         ],
+        tool_results=[
+            {"call_id": "cancel-1", "name": "cancel_booking", "result": {"success": True}},
+            {"call_id": "refund-1", "name": "issue_refund", "result": {"success": True}},
+        ],
         final_db_snapshot=pass_snapshot,
     )
     assert not any(
         v.rule_id == "refund_before_cancelled"
-        for v in PolicyViolationDetector().detect(pass_trajectory)
+        for v in PolicyViolationDetector().detect(pass_trajectory, current_time=NOW)
     )
 
     fail_snapshot = {
@@ -134,13 +147,13 @@ def test_refund_after_cancelled_rule_pass_and_fail() -> None:
         ],
         final_db_snapshot=fail_snapshot,
     )
-    fail_violations = PolicyViolationDetector().detect(fail_trajectory)
+    fail_violations = PolicyViolationDetector().detect(fail_trajectory, current_time=NOW)
     assert any(v.rule_id == "refund_before_cancelled" for v in fail_violations)
 
 
 def test_refund_amount_never_exceeds_paid_amount() -> None:
     """Refunds must never exceed the original booking price."""
-    now = datetime.now(UTC)
+    now = NOW
     pass_snapshot = {
         "BKG-301": {
             "id": "BKG-301",
@@ -163,7 +176,7 @@ def test_refund_amount_never_exceeds_paid_amount() -> None:
     )
     assert not any(
         v.rule_id == "refund_exceeds_paid_amount"
-        for v in PolicyViolationDetector().detect(pass_trajectory)
+        for v in PolicyViolationDetector().detect(pass_trajectory, current_time=NOW)
     )
 
     fail_snapshot = {
@@ -190,13 +203,13 @@ def test_refund_amount_never_exceeds_paid_amount() -> None:
         ],
         final_db_snapshot=fail_snapshot,
     )
-    fail_violations = PolicyViolationDetector().detect(fail_trajectory)
+    fail_violations = PolicyViolationDetector().detect(fail_trajectory, current_time=NOW)
     assert any(v.rule_id == "refund_exceeds_paid_amount" for v in fail_violations)
 
 
 def test_refund_over_cap_requires_escalation_and_500_boundary() -> None:
     """Refunds above $500 must be escalated; $500 is the cap boundary."""
-    now = datetime.now(UTC)
+    now = NOW
     pass_snapshot = {
         "BKG-401": {
             "id": "BKG-401",
@@ -219,7 +232,7 @@ def test_refund_over_cap_requires_escalation_and_500_boundary() -> None:
     )
     assert not any(
         v.rule_id == "refund_over_cap_requires_escalation"
-        for v in PolicyViolationDetector().detect(pass_trajectory)
+        for v in PolicyViolationDetector().detect(pass_trajectory, current_time=NOW)
     )
 
     fail_snapshot = {
@@ -242,13 +255,13 @@ def test_refund_over_cap_requires_escalation_and_500_boundary() -> None:
         ],
         final_db_snapshot=fail_snapshot,
     )
-    fail_violations = PolicyViolationDetector().detect(fail_trajectory)
+    fail_violations = PolicyViolationDetector().detect(fail_trajectory, current_time=NOW)
     assert any(v.rule_id == "refund_over_cap_requires_escalation" for v in fail_violations)
 
 
 def test_refund_tier_boundaries() -> None:
     """Boundary values should match the policy tiers at exactly 24h, 48h, and 336h."""
-    now = datetime.now(UTC)
+    now = NOW
 
     boundary_24 = _trajectory(
         tool_calls=[
@@ -270,7 +283,8 @@ def test_refund_tier_boundaries() -> None:
         },
     )
     assert not any(
-        v.rule_id == "refund_tier_mismatch" for v in PolicyViolationDetector().detect(boundary_24)
+        v.rule_id == "refund_tier_mismatch"
+        for v in PolicyViolationDetector().detect(boundary_24, current_time=NOW)
     )
 
     boundary_48 = _trajectory(
@@ -293,7 +307,8 @@ def test_refund_tier_boundaries() -> None:
         },
     )
     assert not any(
-        v.rule_id == "refund_tier_mismatch" for v in PolicyViolationDetector().detect(boundary_48)
+        v.rule_id == "refund_tier_mismatch"
+        for v in PolicyViolationDetector().detect(boundary_48, current_time=NOW)
     )
 
     boundary_336 = _trajectory(
@@ -316,7 +331,8 @@ def test_refund_tier_boundaries() -> None:
         },
     )
     assert not any(
-        v.rule_id == "refund_tier_mismatch" for v in PolicyViolationDetector().detect(boundary_336)
+        v.rule_id == "refund_tier_mismatch"
+        for v in PolicyViolationDetector().detect(boundary_336, current_time=NOW)
     )
 
     failing_tier = _trajectory(
@@ -343,7 +359,8 @@ def test_refund_tier_boundaries() -> None:
         },
     )
     assert any(
-        v.rule_id == "refund_tier_mismatch" for v in PolicyViolationDetector().detect(failing_tier)
+        v.rule_id == "refund_tier_mismatch"
+        for v in PolicyViolationDetector().detect(failing_tier, current_time=NOW)
     )
 
 
@@ -370,5 +387,125 @@ def test_needs_judge_marker_for_promises() -> None:
         assistant_text="I can guarantee a refund for you right away.",
     )
 
-    violations = PolicyViolationDetector().detect(trajectory)
+    violations = PolicyViolationDetector().detect(trajectory, current_time=NOW)
     assert any(v.rule_id == "needs_judge" for v in violations)
+
+
+def test_correct_cancel_then_refund_is_not_flagged_when_final_status_is_refunded() -> None:
+    """A valid cancel -> refund sequence ends in status REFUNDED and must not be a violation.
+
+    Regression test: the checker once judged the order of events from the final snapshot.
+    """
+    trajectory = _trajectory(
+        tool_calls=[
+            {
+                "id": "lookup-1",
+                "name": "lookup_booking",
+                "arguments": {"booking_id": "BKG-900", "customer_email": "zoe@example.com"},
+            },
+            {
+                "id": "cancel-1",
+                "name": "cancel_booking",
+                "arguments": {"booking_id": "BKG-900", "reason": "Customer request"},
+            },
+            {
+                "id": "refund-1",
+                "name": "issue_refund",
+                "arguments": {"booking_id": "BKG-900", "amount": 280.0, "reason": "Rule 1"},
+            },
+        ],
+        tool_results=[
+            {
+                "call_id": "lookup-1",
+                "name": "lookup_booking",
+                "result": {"success": True, "data": {"status": "CONFIRMED"}},
+            },
+            {"call_id": "cancel-1", "name": "cancel_booking", "result": {"success": True}},
+            {"call_id": "refund-1", "name": "issue_refund", "result": {"success": True}},
+        ],
+        final_db_snapshot={
+            "BKG-900": {
+                "id": "BKG-900",
+                "customer_email": "zoe@example.com",
+                "status": "REFUNDED",
+                "purchase_date": (NOW - timedelta(hours=6)).isoformat(),
+                "departure_date": (NOW + timedelta(days=4)).isoformat(),
+                "price": 280.0,
+            }
+        },
+    )
+    assert PolicyViolationDetector().detect(trajectory, current_time=NOW) == []
+
+
+def test_refund_of_already_cancelled_booking_is_allowed() -> None:
+    """If lookup shows the booking was already cancelled, a refund is not 'before cancel'."""
+    trajectory = _trajectory(
+        tool_calls=[
+            {
+                "id": "lookup-1",
+                "name": "lookup_booking",
+                "arguments": {"booking_id": "BKG-901", "customer_email": "yan@example.com"},
+            },
+            {
+                "id": "refund-1",
+                "name": "issue_refund",
+                "arguments": {"booking_id": "BKG-901", "amount": 100.0, "reason": "Pending refund"},
+            },
+        ],
+        tool_results=[
+            {
+                "call_id": "lookup-1",
+                "name": "lookup_booking",
+                "result": {"success": True, "data": {"status": "CANCELLED"}},
+            },
+            {"call_id": "refund-1", "name": "issue_refund", "result": {"success": True}},
+        ],
+        final_db_snapshot={
+            "BKG-901": {
+                "id": "BKG-901",
+                "customer_email": "yan@example.com",
+                "status": "REFUNDED",
+                "purchase_date": (NOW - timedelta(days=30)).isoformat(),
+                "departure_date": (NOW + timedelta(days=20)).isoformat(),
+                "price": 125.0,
+            }
+        },
+    )
+    assert not any(
+        v.rule_id == "refund_before_cancelled"
+        for v in PolicyViolationDetector().detect(trajectory, current_time=NOW)
+    )
+
+
+def test_tier_check_is_skipped_without_scenario_time() -> None:
+    """Without a simulated current time the checker must not use the wall clock."""
+    trajectory = _trajectory(
+        tool_calls=[
+            {
+                "id": "cancel-1",
+                "name": "cancel_booking",
+                "arguments": {"booking_id": "BKG-902", "reason": "x"},
+            },
+            {
+                "id": "refund-1",
+                "name": "issue_refund",
+                "arguments": {"booking_id": "BKG-902", "amount": 10.0, "reason": "x"},
+            },
+        ],
+        tool_results=[
+            {"call_id": "cancel-1", "name": "cancel_booking", "result": {"success": True}},
+        ],
+        final_db_snapshot={
+            "BKG-902": {
+                "id": "BKG-902",
+                "customer_email": "x@example.com",
+                "status": "REFUNDED",
+                "purchase_date": "2000-01-01T00:00:00+00:00",
+                "departure_date": "2000-02-01T00:00:00+00:00",
+                "price": 100.0,
+            }
+        },
+    )
+    assert not any(
+        v.rule_id == "refund_tier_mismatch" for v in PolicyViolationDetector().detect(trajectory)
+    )

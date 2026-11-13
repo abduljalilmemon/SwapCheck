@@ -395,3 +395,15 @@ def test_load_policy_document() -> None:
     doc = load_policy_document()
     assert "Booking Support Service Policy" in doc
     assert "24-Hour Purchase Cooling-Off Window" in doc
+
+
+def test_agent_system_prompt_states_the_simulated_current_time() -> None:
+    """The agent must be told the scenario's time, since refund tiers depend on it."""
+    db = BookingDatabase()
+    when = datetime(2026, 4, 1, 14, 30, tzinfo=UTC)
+    agent = BookingSupportAgent(provider=MockProvider(), db=db, current_time=when)
+    system = agent.messages[0].content or ""
+    assert "Current date and time (UTC): 2026-04-01T14:30:00Z" in system
+
+    without = BookingSupportAgent(provider=MockProvider(), db=db)
+    assert "Current date and time" not in (without.messages[0].content or "")

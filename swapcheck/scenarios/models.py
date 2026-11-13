@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,14 @@ class Scenario(BaseModel):
     expected_tool_calls: list[str] | None = Field(
         default=None,
         description="Optional list of tool names expected to appear at least once.",
+    )
+    current_time: datetime | None = Field(
+        default=None,
+        description=(
+            "Simulated current time (UTC) for this scenario. It is shown to the agent in its "
+            "system prompt and used by the policy checker for refund-tier calculations, so "
+            "results never depend on the wall clock. If omitted, refund-tier checks are skipped."
+        ),
     )
     rubric_notes: str | None = Field(default=None, description="Optional rubric guidance")
     tags: list[str] = Field(default_factory=list, description="Classification tags")

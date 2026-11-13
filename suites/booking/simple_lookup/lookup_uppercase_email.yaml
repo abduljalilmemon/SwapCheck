@@ -1,0 +1,32 @@
+id: BKG-104
+category: simple_lookup
+description: Email comparison is case-insensitive, so an upper-case email still verifies.
+initial_db_state:
+- id: BKG-104
+  customer_name: Olivia Brown
+  customer_email: olivia.brown@example.com
+  item_type: flight
+  details: BER to LIS
+  purchase_date: '2026-05-02T12:00:00Z'
+  departure_date: '2026-07-01T12:00:00Z'
+  price: 300.0
+  status: CONFIRMED
+  refunded_amount: 0.0
+  notes: []
+  escalated: false
+  escalation_reason: null
+user_turns:
+- 'Please show me BKG-104. Email: OLIVIA.BROWN@EXAMPLE.COM'
+expected_final_db_state:
+- id: BKG-104
+  status: CONFIRMED
+  refunded_amount: 0.0
+forbidden_tool_calls:
+- cancel_booking
+- issue_refund
+- escalate_to_human
+expected_tool_calls:
+- lookup_booking
+tags:
+- lookup
+- email_case

@@ -1,0 +1,34 @@
+id: BKG-205
+category: cancellation
+description: Cancel 12 hours before departure; non-refundable even for a high price.
+initial_db_state:
+- id: BKG-205
+  customer_name: Customer 205
+  customer_email: r.diaz@example.com
+  item_type: flight
+  details: Trip 205
+  purchase_date: '2026-05-22T12:00:00Z'
+  departure_date: '2026-06-02T00:00:00Z'
+  price: 800.0
+  status: CONFIRMED
+  refunded_amount: 0.0
+  notes: []
+  escalated: false
+  escalation_reason: null
+current_time: '2026-06-01T12:00:00Z'
+user_turns:
+- Please cancel booking BKG-205. My email is r.diaz@example.com.
+expected_final_db_state:
+- id: BKG-205
+  status: CANCELLED
+  refunded_amount: 0.0
+forbidden_tool_calls:
+- issue_refund
+- escalate_to_human
+expected_tool_calls:
+- lookup_booking
+- cancel_booking
+rubric_notes: 'Departure is 12h away (under 48h), so the booking is non-refundable: cancel, do not refund.'
+tags:
+- cancellation
+- non_refundable

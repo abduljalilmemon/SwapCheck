@@ -242,12 +242,16 @@ def summarize_calibration(
     )
 
     kappa_off_policy = compute_cohens_kappa(human_off_policy, judge_off_policy)
+    # Kappa is undefined when both raters only ever use the same single label: agreement
+    # cannot then be separated from chance, so callers must not read the number as "perfect".
+    kappa_defined = len(set(human_passed) | set(judge_passed)) > 1
+    kappa_off_policy_defined = len(set(human_off_policy) | set(judge_off_policy)) > 1
 
     mae_helpfulness = float(np.mean(abs_diff_helpfulness)) if abs_diff_helpfulness else 0.0
     mae_groundedness = float(np.mean(abs_diff_groundedness)) if abs_diff_groundedness else 0.0
     mae_tone = float(np.mean(abs_diff_tone)) if abs_diff_tone else 0.0
 
-    if kappa < 0.60:
+    if kappa_defined and kappa < 0.60:
         msg = f"Warning: Low judge agreement! Cohen's kappa is {kappa:.3f} (< 0.60). Judge calibration is insufficient."
         warnings.warn(msg, UserWarning, stacklevel=2)
         print(msg)
@@ -262,7 +266,9 @@ def summarize_calibration(
         "raw_agreement": float(raw_agreement),
         "kappa": float(kappa),
         "kappa_ci_95": [float(boot_lower), float(boot_upper)],
+        "kappa_defined": kappa_defined,
         "kappa_off_policy": float(kappa_off_policy),
+        "kappa_off_policy_defined": kappa_off_policy_defined,
         "mae_helpfulness": mae_helpfulness,
         "mae_groundedness": mae_groundedness,
         "mae_tone": mae_tone,

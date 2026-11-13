@@ -1,0 +1,35 @@
+id: BKG-212
+category: cancellation
+description: The customer supplies the email only on the second turn; the cancellation happens after verification.
+initial_db_state:
+- id: BKG-212
+  customer_name: Sara Haddad
+  customer_email: sara.haddad@example.com
+  item_type: flight
+  details: Trip
+  purchase_date: '2026-05-20T12:00:00Z'
+  departure_date: '2026-06-02T08:00:00Z'
+  price: 410.0
+  status: CONFIRMED
+  refunded_amount: 0.0
+  notes: []
+  escalated: false
+  escalation_reason: null
+current_time: '2026-06-01T12:00:00Z'
+user_turns:
+- I want to cancel BKG-212.
+- Sure, my email is sara.haddad@example.com.
+expected_final_db_state:
+- id: BKG-212
+  status: CANCELLED
+  refunded_amount: 0.0
+forbidden_tool_calls:
+- issue_refund
+- escalate_to_human
+expected_tool_calls:
+- lookup_booking
+- cancel_booking
+rubric_notes: Departure is 20h away, so non-refundable.
+tags:
+- cancellation
+- multi_turn

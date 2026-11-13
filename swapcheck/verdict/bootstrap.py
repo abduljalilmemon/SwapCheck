@@ -40,7 +40,7 @@ def compute_scenario_differences(
             raise TypeError("Scenario rows must be mapping-like or ScenarioResult objects.")
         baseline, candidate = _scenario_to_rates(row)
         diffs.append(float(candidate - baseline))
-    return cast(np.ndarray, np.asarray(diffs, dtype=float))
+    return np.asarray(diffs, dtype=float)
 
 
 def paired_scenario_bootstrap(

@@ -6,6 +6,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+#: Keyword arguments the harness passes to ``complete`` for bookkeeping (cache keys,
+#: scripted degradation). They must never be forwarded to a real model API.
+INTERNAL_CALL_KWARGS = frozenset({"scenario_id", "category", "repetition_index"})
+
 
 class ToolCall(BaseModel):
     """Represents a tool/function call requested by the LLM."""

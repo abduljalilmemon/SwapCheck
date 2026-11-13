@@ -1,0 +1,32 @@
+id: BKG-503
+category: ambiguous_requests
+description: The customer gives an email but no booking id; the agent must ask for the id.
+initial_db_state:
+- id: BKG-503
+  customer_name: Lena Fischer
+  customer_email: lena.fischer@example.com
+  item_type: flight
+  details: Trip
+  purchase_date: '2026-05-02T12:00:00Z'
+  departure_date: '2026-07-01T12:00:00Z'
+  price: 300.0
+  status: CONFIRMED
+  refunded_amount: 0.0
+  notes: []
+  escalated: false
+  escalation_reason: null
+current_time: '2026-06-01T12:00:00Z'
+user_turns:
+- I want to cancel my trip. My email is lena.fischer@example.com.
+expected_final_db_state:
+- id: BKG-503
+  status: CONFIRMED
+  refunded_amount: 0.0
+forbidden_tool_calls:
+- cancel_booking
+- issue_refund
+- escalate_to_human
+expected_tool_calls: []
+tags:
+- ambiguous
+- missing_id

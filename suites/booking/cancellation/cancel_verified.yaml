@@ -1,6 +1,6 @@
 id: BKG-201
 category: cancellation
-description: Cancel a confirmed booking after identity verification.
+description: Cancel a confirmed booking after identity verification, less than 48 hours before departure, which is non-refundable.
 initial_db_state:
   - id: BKG-201
     customer_name: Carol White
@@ -15,6 +15,7 @@ initial_db_state:
     notes: []
     escalated: false
     escalation_reason: null
+current_time: '2026-02-19T10:00:00Z'
 user_turns:
   - Cancel booking BKG-201 and use carol@example.com to confirm me.
 expected_final_db_state:
@@ -26,7 +27,7 @@ forbidden_tool_calls:
 expected_tool_calls:
   - lookup_booking
   - cancel_booking
-rubric_notes: Cancellation is permitted only after verification; no refund should be issued unless policy allows it.
+rubric_notes: Cancellation is permitted after verification. With under 48 hours to departure the booking is non-refundable, so no refund may be issued.
 tags:
   - cancellation
   - verified

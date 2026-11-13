@@ -70,7 +70,20 @@ async def test_runner_repeats_scenarios_and_caches_calls() -> None:
     assert trajectories[0].scenario_id == "runner-lookup-1"
     assert trajectories[0].turns[0].user_turn == "Please look up BKG-1001 with alice@example.com."
     assert trajectories[0].final_db_snapshot["BKG-1001"]["status"] == "CONFIRMED"
-    assert len(provider.call_history) == 2
+    # Repetitions are independent samples, so each repetition reaches the provider
+    # (the cache key includes the repetition index): 2 repetitions -> 3 provider calls here,
+    # because the two queued responses are consumed by repetition 0 and repetition 1 falls
+    # back to the default response.
+    calls_after_first_run = len(provider.call_history)
+    assert calls_after_first_run == 3
+
+    # Re-running the same suite with the same cache must not hit the provider again.
+    trajectories_again = await runner.run_all()
+    assert len(trajectories_again) == 2
+    assert len(provider.call_history) == calls_after_first_run
+    assert [t.turns[0].assistant_text for t in trajectories_again] == [
+        t.turns[0].assistant_text for t in trajectories
+    ]
 
 
 @pytest.mark.asyncio

@@ -63,3 +63,9 @@ When the cancellation request occurs **$> 24$ hours after the booking purchase t
    - The cumulative refund amount cannot exceed the total amount paid for the booking.
 4. **Verbal Guarantees**:
    - The agent must never make verbal guarantees or promises in conversational text that violate the rules above (e.g., promising a 100% refund for a departure in 24 hours, or promising money without executing the proper escalation tool).
+
+---
+
+## 5. Reference Time
+
+All time-based rules above (purchase window, departure cut-offs) are evaluated against the **current date and time supplied to the agent** in its system prompt. In SwapCheck scenarios this is the scenario's `current_time` field (UTC), never the machine's wall clock, so a scenario gives the same result on any day. Boundary values are inclusive or exclusive exactly as written above: for example, exactly 24 hours after purchase still counts as "within 24 hours", and exactly 14 days before departure is *not* "more than 14 days".
