@@ -459,3 +459,24 @@ def test_fail_on_exit_codes(tmp_path: Path) -> None:
 def test_fail_on_rejects_unknown_values(tmp_path: Path) -> None:
     result, _ = _run(tmp_path / "run", "baseline_mock", "--fail-on", "always")
     assert result.exit_code == 2  # type: ignore[attr-defined]
+
+
+def test_missing_config_file_gives_a_friendly_error(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "--baseline",
+            str(tmp_path / "nope.yaml"),
+            "--candidate",
+            "configs/candidate_mock.yaml",
+            "--suite",
+            SUITE,
+            "--output-dir",
+            str(tmp_path / "run"),
+        ],
+    )
+    assert result.exit_code == 2
+    assert "not found" in result.output
+    assert "example.yaml" in result.output
+    assert "Traceback" not in result.output

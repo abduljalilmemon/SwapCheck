@@ -149,3 +149,59 @@ async def test_internal_bookkeeping_kwargs_are_never_sent_to_the_model_api() -> 
     assert "category" not in sent
     assert "repetition_index" not in sent
     assert sent["top_p"] == 0.9
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_errors_are_retried_with_backoff() -> None:
+    import litellm
+
+    ok = MockCompletionResult(content="finally")
+    mocked = AsyncMock(
+        side_effect=[
+            litellm.RateLimitError(message="slow down", llm_provider="p", model="m"),
+            litellm.ServiceUnavailableError(message="busy", llm_provider="p", model="m"),
+            ok,
+        ]
+    )
+    provider = LiteLLMProvider(model_name="mock-gpt", max_retries=3, retry_base_delay=0.0)
+    with (
+        patch("swapcheck.providers.litellm_provider.acompletion", new=mocked),
+        patch("swapcheck.providers.litellm_provider.asyncio.sleep", new=AsyncMock()) as sleeper,
+    ):
+        response = await provider.complete([ChatMessage(role="user", content="hi")])
+    assert response.content == "finally"
+    assert mocked.await_count == 3
+    assert sleeper.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_retries_give_up_after_max_retries() -> None:
+    import litellm
+
+    mocked = AsyncMock(
+        side_effect=litellm.RateLimitError(message="no", llm_provider="p", model="m")
+    )
+    provider = LiteLLMProvider(model_name="mock-gpt", max_retries=2, retry_base_delay=0.0)
+    with (
+        patch("swapcheck.providers.litellm_provider.acompletion", new=mocked),
+        patch("swapcheck.providers.litellm_provider.asyncio.sleep", new=AsyncMock()),
+        pytest.raises(litellm.RateLimitError),
+    ):
+        await provider.complete([ChatMessage(role="user", content="hi")])
+    assert mocked.await_count == 3  # first attempt + 2 retries
+
+
+@pytest.mark.asyncio
+async def test_authentication_errors_are_not_retried() -> None:
+    import litellm
+
+    mocked = AsyncMock(
+        side_effect=litellm.AuthenticationError(message="bad key", llm_provider="p", model="m")
+    )
+    provider = LiteLLMProvider(model_name="mock-gpt", max_retries=5, retry_base_delay=0.0)
+    with (
+        patch("swapcheck.providers.litellm_provider.acompletion", new=mocked),
+        pytest.raises(litellm.AuthenticationError),
+    ):
+        await provider.complete([ChatMessage(role="user", content="hi")])
+    assert mocked.await_count == 1

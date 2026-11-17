@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
+import random
 import time
 from typing import Any
 
@@ -11,6 +13,13 @@ os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
 os.environ["LITELLM_TELEMETRY"] = "False"
 
 from litellm import acompletion
+from litellm.exceptions import (
+    APIConnectionError,
+    InternalServerError,
+    RateLimitError,
+    ServiceUnavailableError,
+    Timeout,
+)
 
 from swapcheck.providers.base import (
     INTERNAL_CALL_KWARGS,
@@ -19,6 +28,16 @@ from swapcheck.providers.base import (
     LLMResponse,
     TokenUsage,
     ToolCall,
+)
+
+#: Errors worth retrying: rate limits and transient server or network problems.
+#: Authentication and bad-request errors are NOT retried.
+RETRYABLE_ERRORS: tuple[type[BaseException], ...] = (
+    RateLimitError,
+    Timeout,
+    ServiceUnavailableError,
+    InternalServerError,
+    APIConnectionError,
 )
 
 
@@ -35,6 +54,9 @@ class LiteLLMProvider(BaseProvider):
         max_tokens: int | None = None,
         cost_per_input_token: float | None = None,
         cost_per_output_token: float | None = None,
+        max_retries: int = 4,
+        retry_base_delay: float = 2.0,
+        retry_max_delay: float = 30.0,
         **extra_kwargs: Any,
     ) -> None:
         super().__init__(model_name=model_name, temperature=temperature)
@@ -43,6 +65,9 @@ class LiteLLMProvider(BaseProvider):
         self.max_tokens = max_tokens
         self.cost_per_input_token = cost_per_input_token
         self.cost_per_output_token = cost_per_output_token
+        self.max_retries = max(0, max_retries)
+        self.retry_base_delay = retry_base_delay
+        self.retry_max_delay = retry_max_delay
         self.extra_kwargs = extra_kwargs
 
     async def complete(
@@ -67,9 +92,21 @@ class LiteLLMProvider(BaseProvider):
         payload.update(self.extra_kwargs)
         payload.update({k: v for k, v in kwargs.items() if k not in INTERNAL_CALL_KWARGS})
 
-        start_time = time.perf_counter()
-        result = await acompletion(**payload)
-        latency_ms = (time.perf_counter() - start_time) * 1000.0
+        attempt = 0
+        while True:
+            # Latency is measured for the successful attempt only, so waiting out a rate
+            # limit does not make a model look slow.
+            start_time = time.perf_counter()
+            try:
+                result = await acompletion(**payload)
+                latency_ms = (time.perf_counter() - start_time) * 1000.0
+                break
+            except RETRYABLE_ERRORS:
+                if attempt >= self.max_retries:
+                    raise
+                delay = min(self.retry_max_delay, self.retry_base_delay * (2**attempt))
+                await asyncio.sleep(delay * (0.75 + random.random() * 0.5))
+                attempt += 1
 
         choice = result.choices[0]
         message = choice.message

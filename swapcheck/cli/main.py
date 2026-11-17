@@ -203,9 +203,16 @@ def run(
     if judge_affects_pass and judge is None:
         raise _fail("--judge-affects-pass requires --judge.", code=2)
 
-    baseline_config = load_model_config(_resolve_path(baseline))
-    candidate_config = load_model_config(_resolve_path(candidate))
-    judge_config = load_model_config(_resolve_path(judge)) if judge is not None else None
+    try:
+        baseline_config = load_model_config(_resolve_path(baseline))
+        candidate_config = load_model_config(_resolve_path(candidate))
+        judge_config = load_model_config(_resolve_path(judge)) if judge is not None else None
+    except FileNotFoundError as exc:
+        raise _fail(
+            f"{exc}. Copy the matching configs/*.example.yaml to a new file and edit it.", code=2
+        ) from exc
+    except ValueError as exc:
+        raise _fail(f"Invalid model config: {exc}", code=2) from exc
     if judge_config is not None:
         _refuse_same_model(
             judge_config, {"baseline": baseline_config, "candidate": candidate_config}
