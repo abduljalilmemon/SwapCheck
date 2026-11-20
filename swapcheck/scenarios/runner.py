@@ -67,8 +67,12 @@ class ScenarioRunner:
         self.repetitions = max(1, repetitions)
         self.max_concurrency = max(1, max_concurrency)
         self.provider_factory = provider_factory or (lambda: MockProvider(model_name="mock-runner"))
+        self.cache: ResponseCache | None
         if cache is not None:
             self.cache = cache
+        elif not use_cache:
+            # No cache requested: don't leave a stray SQLite file in the temp directory.
+            self.cache = None
         else:
             cache_path = Path(tempfile.gettempdir()) / f"swapcheck-runner-{uuid.uuid4().hex}.db"
             self.cache = ResponseCache(db_path=cache_path)
@@ -102,7 +106,9 @@ class ScenarioRunner:
     async def _run_scenario(self, scenario: Scenario, repetition_index: int = 0) -> Trajectory:
         provider = self.provider_factory()
         cached_provider: BaseProvider = (
-            CachedProvider(provider=provider, cache=self.cache) if self.use_cache else provider
+            CachedProvider(provider=provider, cache=self.cache)
+            if self.use_cache and self.cache is not None
+            else provider
         )
         db = BookingDatabase(initial_data=scenario.initial_db_state)
         agent = BookingSupportAgent(

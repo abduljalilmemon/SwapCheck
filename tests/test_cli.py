@@ -480,3 +480,61 @@ def test_missing_config_file_gives_a_friendly_error(tmp_path: Path) -> None:
     assert "not found" in result.output
     assert "example.yaml" in result.output
     assert "Traceback" not in result.output
+
+
+def test_missing_api_key_env_var_gives_a_friendly_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("SWAPCHECK_TEST_MISSING_KEY", raising=False)
+    config = tmp_path / "real.yaml"
+    config.write_text(
+        "provider: litellm\nname: real\nmodel: vendor/model\n"
+        "api_key_env_var: SWAPCHECK_TEST_MISSING_KEY\n",
+        encoding="utf-8",
+    )
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "--baseline",
+            "configs/baseline_mock.yaml",
+            "--candidate",
+            str(config),
+            "--suite",
+            SUITE,
+            "--output-dir",
+            str(tmp_path / "run"),
+            "--no-cache",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "SWAPCHECK_TEST_MISSING_KEY" in result.output
+    assert "is not set" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_api_key_pasted_into_config_is_rejected_without_echoing_it(tmp_path: Path) -> None:
+    fake_key = "sk-proj-THIS-IS-NOT-A-REAL-KEY-1234567890"
+    config = tmp_path / "leaky.yaml"
+    config.write_text(
+        f"provider: litellm\nname: leaky\nmodel: vendor/model\napi_key_env_var: {fake_key}\n",
+        encoding="utf-8",
+    )
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "--baseline",
+            "configs/baseline_mock.yaml",
+            "--candidate",
+            str(config),
+            "--suite",
+            SUITE,
+            "--output-dir",
+            str(tmp_path / "run"),
+            "--no-cache",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "NAME of an environment variable" in result.output.replace("\n", " ")
+    assert fake_key not in result.output

@@ -47,6 +47,8 @@ from swapcheck.verdict.engine import VerdictEngine
 app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
+    # Local variables can hold API keys; keep them out of crash output.
+    pretty_exceptions_show_locals=False,
     help="Statistically grounded evaluation harness for tool-using LLM agents.",
 )
 console = Console()
@@ -217,6 +219,15 @@ def run(
         _refuse_same_model(
             judge_config, {"baseline": baseline_config, "candidate": candidate_config}
         )
+    # Build each provider once up front so a missing API key or unknown backend fails
+    # cleanly here instead of as a traceback in the middle of the run.
+    for config in (baseline_config, candidate_config, judge_config):
+        if config is None:
+            continue
+        try:
+            build_provider(config)
+        except ValueError as exc:
+            raise _fail(f"Config '{config.name}': {exc}", code=2) from exc
 
     suite_path = _resolve_path(suite)
     grouped = load_scenarios(suite_path)

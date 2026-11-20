@@ -225,3 +225,8 @@ __marimo__/
 *.db
 *.sqlite
 runs/
+
+# Local, non-example model configs (may reference real accounts)
+configs/baseline.yaml
+configs/candidate.yaml
+configs/judge.yaml

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_ENV_VAR_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 class ModelConfig(BaseModel):
@@ -15,6 +18,10 @@ class ModelConfig(BaseModel):
 
     Model identifiers and vendor configs live exclusively in external YAML configs.
     """
+
+    # Never echo raw config values in validation errors: a misplaced API key must not
+    # end up in terminal output or CI logs.
+    model_config = ConfigDict(hide_input_in_errors=True)
 
     provider: str = Field(default="mock", description="Provider backend type (mock, litellm, etc.)")
     name: str = Field(
@@ -37,6 +44,19 @@ class ModelConfig(BaseModel):
     extra_params: dict[str, Any] = Field(
         default_factory=dict, description="Additional provider-specific parameters"
     )
+
+    @field_validator("api_key_env_var")
+    @classmethod
+    def _check_env_var_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not _ENV_VAR_NAME.match(value):
+            raise ValueError(
+                "api_key_env_var must be the NAME of an environment variable "
+                "(e.g. OPENAI_API_KEY), not the API key itself. Put the key in that "
+                "environment variable instead."
+            )
+        return value
 
     @classmethod
     def from_yaml_file(cls, path: str | Path) -> ModelConfig:

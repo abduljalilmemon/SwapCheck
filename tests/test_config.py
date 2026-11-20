@@ -34,3 +34,14 @@ def test_settings_defaults() -> None:
     assert s.min_scenarios_overall == 50
     assert s.min_scenarios_per_category == 8
     assert s.default_runs_per_scenario == 3
+
+
+def test_api_key_env_var_must_be_a_variable_name() -> None:
+    import pytest
+    from pydantic import ValidationError
+
+    assert ModelConfig(name="x", model="m", api_key_env_var="OPENAI_API_KEY").api_key_env_var
+    secret = "sk-proj-abc-123"
+    with pytest.raises(ValidationError) as excinfo:
+        ModelConfig(name="x", model="m", api_key_env_var=secret)
+    assert secret not in str(excinfo.value)
